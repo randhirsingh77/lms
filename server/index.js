@@ -22,7 +22,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin:"http://localhost:5173",
+    origin:"https://lms-3bcomgpac-randhir-singhs-projects-1ae44db2.vercel.app/",
     credentials:true
 }));
  
