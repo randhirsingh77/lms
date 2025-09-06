@@ -21,11 +21,16 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cookieParser());
 
+const allowedOrigins = [
+  "http://localhost:5173", 
+  "https://lms-3bcomgpac-randhir-singhs-projects-1ae44db2.vercel.app"
+];
+
 app.use(cors({
-    origin:"https://lms-3bcomgpac-randhir-singhs-projects-1ae44db2.vercel.app",
-    credentials:true
+  origin: allowedOrigins,
+  credentials: true
 }));
- 
+
 // apis
 app.use("/api/v1/media", mediaRoute);
 app.use("/api/v1/user", userRoute);
