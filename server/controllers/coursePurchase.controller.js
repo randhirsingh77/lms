@@ -39,10 +39,11 @@ export const createCheckoutSession = async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `https://lms-3bcomgpac-randhir-singhs-projects-1ae44db2.vercel.app/course-progress/${courseId}`, // once payment successful redirect to course progress page
-      cancel_url: `https://lms-3bcomgpac-randhir-singhs-projects-1ae44db2.vercel.app/course-detail/${courseId}`,
+      success_url: `${process.env.FRONTEND_URL}/course-progress/${courseId}`, // once payment successful redirect to course progress page
+      cancel_url: `${process.env.FRONTEND_URL}/course-detail/${courseId}`,
       metadata: {
         courseId: courseId,
+
         userId: userId,
       },
       shipping_address_collection: {
