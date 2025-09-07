@@ -23,7 +23,7 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "http://localhost:5173", 
-  "https://lms-sigma-plum.vercel.app/"
+  "https://lms-3bcomgpac-randhir-singhs-projects-1ae44db2.vercel.app"
 ];
 
 app.use(cors({
