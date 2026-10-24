@@ -23,11 +23,13 @@ import {
 } from "./components/ProtectedRoutes";
 import PurchaseCourseProtectedRoute from "./components/PurchaseCourseProtectedRoute";
 import { ThemeProvider } from "./components/ThemeProvider";
+import RouteError from "./components/RouteError";
 
 const appRouter = createBrowserRouter([
   {
     path: "/",
     element: <MainLayout />,
+    errorElement: <RouteError />,
     children: [
       {
         path: "/",

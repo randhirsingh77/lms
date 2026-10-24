@@ -81,7 +81,7 @@ const LectureTab = () => {
           toast.success(res.data.message);
         }
       } catch (error) {
-        console.log(error);
+        console.error(error?.message || "Upload failed");
         toast.error("video upload failed");
       } finally {
         setMediaProgress(false);

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useGetCourseDetailWithStatusQuery } from "@/features/api/purchaseApi";
+import DOMPurify from "dompurify";
 import { BadgeInfo, Lock, PlayCircle } from "lucide-react";
 import React from "react";
 import ReactPlayer from "react-player";
@@ -57,9 +58,16 @@ const CourseDetail = () => {
       <div className="max-w-7xl mx-auto my-5 px-4 md:px-8 flex flex-col lg:flex-row justify-between gap-10">
         <div className="w-full lg:w-1/2 space-y-5">
           <h1 className="font-bold text-xl md:text-2xl">Description</h1>
-          <p
+          {/* The description is instructor-written rich text (Jodit). It
+              MUST be sanitised before hitting the DOM: rendering it raw
+              let any instructor account inject <script>/event handlers
+              into every student's browser (stored XSS). DOMPurify keeps
+              the formatting tags and strips anything executable. */}
+          <div
             className="text-sm"
-            dangerouslySetInnerHTML={{ __html: course.description }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(course.description || ""),
+            }}
           />
           <Card>
             <CardHeader>

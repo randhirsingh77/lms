@@ -27,8 +27,9 @@ export const authApi = createApi({
                 try {
                     const result = await queryFulfilled;
                     dispatch(userLoggedIn({user:result.data.user}));
-                } catch (error) {
-                    console.log(error);
+                } catch {
+                    // expected for a failed login / logged-out visitor;
+                    // the UI surfaces the real error message itself.
                 }
             }
         }),
@@ -52,8 +53,9 @@ export const authApi = createApi({
                 try {
                     const result = await queryFulfilled;
                     dispatch(userLoggedIn({user:result.data.user}));
-                } catch (error) {
-                    console.log(error);
+                } catch {
+                    // expected for a failed login / logged-out visitor;
+                    // the UI surfaces the real error message itself.
                 }
             }
         }),
