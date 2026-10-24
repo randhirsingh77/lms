@@ -1,4 +1,4 @@
-import { GraduationCap, Menu } from "lucide-react";
+import { GraduationCap, KeyRound, Menu } from "lucide-react";
 import React from "react";
 import {
   DropdownMenu,
@@ -117,6 +117,12 @@ const Navbar = () => {
                   <DropdownMenuItem asChild>
                     <Link to="/profile">Edit Profile</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/change-password" className="flex items-center gap-2">
+                      <KeyRound className="h-4 w-4" />
+                      Reset Password
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={logoutHandler}>
                     Log out
                   </DropdownMenuItem>
@@ -204,6 +210,12 @@ const MobileNavbar = ({ user, onLogout }) => {
               <SheetClose asChild>
                 <Link to="/profile" className="rounded-lg px-3 py-2.5 hover:bg-accent">
                   Edit Profile
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link to="/change-password" className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent">
+                  <KeyRound className="h-4 w-4" />
+                  Reset Password
                 </Link>
               </SheetClose>
               {user?.role === "instructor" ? (

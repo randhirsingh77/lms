@@ -2,7 +2,7 @@ import { EmptyState, PageHeader, PageShell } from "@/components/SiteUI";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetSearchCourseQuery } from "@/features/api/courseApi";
-import { SearchX } from "lucide-react";
+import { SearchX, TriangleAlert } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Filter from "./Filter";
@@ -17,7 +17,7 @@ const SearchPage = () => {
   const [selectedCategories, setSelectedCatgories] = useState([]);
   const [sortByPrice, setSortByPrice] = useState("");
 
-  const { data, isLoading } = useGetSearchCourseQuery({
+  const { data, isLoading, isError, refetch } = useGetSearchCourseQuery({
     searchQuery: query,
     categories: selectedCategories,
     sortByPrice,
@@ -48,6 +48,20 @@ const SearchPage = () => {
             Array.from({ length: 3 }).map((_, idx) => (
               <CourseSkeleton key={idx} />
             ))
+          ) : isError ? (
+            // A failed search is NOT "no courses match" — conflating the
+            // two sent users (and bug reports) chasing phantom filter bugs
+            // whenever the API hiccuped. Say it failed, offer a retry.
+            <EmptyState
+              icon={TriangleAlert}
+              title="Search failed"
+              description="Something went wrong while loading courses. Check your connection and try again."
+              action={
+                <Button onClick={() => refetch()} className="h-10">
+                  Try again
+                </Button>
+              }
+            />
           ) : isEmpty ? (
             <EmptyState
               icon={SearchX}
