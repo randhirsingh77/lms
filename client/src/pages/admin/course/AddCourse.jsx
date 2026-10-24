@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,6 +16,8 @@ import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { PageHeader } from "../AdminUI";
+import { CATEGORIES } from "./categories";
 
 const AddCourse = () => {
   const [courseTitle, setCourseTitle] = useState("");
@@ -25,88 +28,88 @@ const AddCourse = () => {
 
   const navigate = useNavigate();
 
-  const getSelectedCategory = (value) => {
-    setCategory(value);
-  };
-
   const createCourseHandler = async () => {
     await createCourse({ courseTitle, category });
   };
 
-  // for displaying toast
-  useEffect(()=>{
-    if(isSuccess){
-        toast.success(data?.message || "Course created.");
-        navigate("/admin/course");
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success(data?.message || "Course created.");
+      navigate("/admin/course");
     }
-  },[isSuccess, error])
+    if (error) {
+      toast.error(error?.data?.message || "Failed to create course");
+    }
+  }, [isSuccess, error, data, navigate]);
 
   return (
-    <div className="flex-1 mx-10">
-      <div className="mb-4">
-        <h1 className="font-bold text-xl">
-          Lets add course, add some basic course detail
-        </h1>
-        <p className="text-sm">
-          Lorem, ipsum dolor sit amet consectetur adipisicing elit. Possimus,
-          laborum!
-        </p>
-      </div>
-      <div className="space-y-4">
-        <div>
-          <Label>Title</Label>
-          <Input
-            type="text"
-            value={courseTitle}
-            onChange={(e) => setCourseTitle(e.target.value)}
-            placeholder="Your Course Name"
-          />
-        </div>
-        <div>
-          <Label>Category</Label>
-          <Select onValueChange={getSelectedCategory}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select a category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Category</SelectLabel>
-                <SelectItem value="Next JS">Next JS</SelectItem>
-                <SelectItem value="Data Science">Data Science</SelectItem>
-                <SelectItem value="Frontend Development">
-                  Frontend Development
-                </SelectItem>
-                <SelectItem value="Fullstack Development">
-                  Fullstack Development
-                </SelectItem>
-                <SelectItem value="MERN Stack Development">
-                  MERN Stack Development
-                </SelectItem>
-                <SelectItem value="Javascript">Javascript</SelectItem>
-                <SelectItem value="Python">Python</SelectItem>
-                <SelectItem value="Docker">Docker</SelectItem>
-                <SelectItem value="MongoDB">MongoDB</SelectItem>
-                <SelectItem value="HTML">HTML</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/admin/course")}>
-            Back
-          </Button>
-          <Button disabled={isLoading} onClick={createCourseHandler}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Please wait
-              </>
-            ) : (
-              "Create"
-            )}
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Create course"
+        description="Start with a title and category — description, price, thumbnail and lectures come next."
+      />
+
+      <Card className="max-w-2xl shadow-sm">
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="course-title">Course title</Label>
+            <Input
+              id="course-title"
+              type="text"
+              value={courseTitle}
+              onChange={(e) => setCourseTitle(e.target.value)}
+              placeholder="Ex. Fullstack Development Bootcamp"
+              className="h-11"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="course-category">Category</Label>
+            <Select value={category || undefined} onValueChange={setCategory}>
+              <SelectTrigger id="course-category" className="h-11 w-full">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Category</SelectLabel>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              The category is how students filter courses in search, so pick the closest match.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3 pt-2">
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={() => navigate("/admin/course")}
+            >
+              Back
+            </Button>
+            <Button
+              className="h-11"
+              disabled={isLoading || !courseTitle.trim() || !category}
+              onClick={createCourseHandler}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Please wait
+                </>
+              ) : (
+                "Create course"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

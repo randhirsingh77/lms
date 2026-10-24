@@ -1,14 +1,17 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCreateLectureMutation,
   useGetCourseLectureQuery,
 } from "@/features/api/courseApi";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, ListVideo, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { EmptyState, PageHeader } from "../AdminUI";
 import Lecture from "./Lecture";
 
 const CreateLecture = () => {
@@ -34,73 +37,107 @@ const CreateLecture = () => {
   useEffect(() => {
     if (isSuccess) {
       refetch();
-      toast.success(data.message);
+      setLectureTitle("");
+      toast.success(data?.message || "Lecture created.");
     }
     if (error) {
-      toast.error(error.data.message);
+      toast.error(error?.data?.message || "Failed to create lecture");
     }
-  }, [isSuccess, error]);
+  }, [isSuccess, error, data, refetch]);
 
-  console.log(lectureData);
+  const lectures = lectureData?.lectures ?? [];
 
   return (
-    <div className="flex-1 mx-10">
-      <div className="mb-4">
-        <h1 className="font-bold text-xl">
-          Let's add lectures, add some basic details for your new lecture
-        </h1>
-        <p className="text-sm">
-          Lorem, ipsum dolor sit amet consectetur adipisicing elit. Possimus,
-          laborum!
-        </p>
-      </div>
-      <div className="space-y-4">
-        <div>
-          <Label>Title</Label>
-          <Input
-            type="text"
-            value={lectureTitle}
-            onChange={(e) => setLectureTitle(e.target.value)}
-            placeholder="Your Title Name"
-          />
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      <PageHeader
+        title="Lectures"
+        description="Add lectures to this course, then open one to upload its video."
+        action={
           <Button
             variant="outline"
+            className="h-11"
             onClick={() => navigate(`/admin/course/${courseId}`)}
           >
+            <ArrowLeft className="h-4 w-4" />
             Back to course
           </Button>
-          <Button disabled={isLoading} onClick={createLectureHandler}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Please wait
-              </>
-            ) : (
-              "Create lecture"
-            )}
-          </Button>
-        </div>
-        <div className="mt-10">
-          {lectureLoading ? (
-            <p>Loading lectures...</p>
-          ) : lectureError ? (
-            <p>Failed to load lectures.</p>
-          ) : lectureData.lectures.length === 0 ? (
-            <p>No lectures availabe</p>
-          ) : (
-            lectureData.lectures.map((lecture, index) => (
-              <Lecture
-                key={lecture._id}
-                lecture={lecture}
-                courseId={courseId}
-                index={index}
-              />
-            ))
-          )}
-        </div>
-      </div>
+        }
+      />
+
+      <Card className="max-w-2xl shadow-sm">
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="lecture-title">Lecture title</Label>
+            <Input
+              id="lecture-title"
+              type="text"
+              value={lectureTitle}
+              onChange={(e) => setLectureTitle(e.target.value)}
+              placeholder="Ex. Introduction to Javascript"
+              className="h-11"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button
+              className="h-11"
+              disabled={isLoading || !lectureTitle.trim()}
+              onClick={createLectureHandler}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Please wait
+                </>
+              ) : (
+                "Create lecture"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">
+          Course lectures{" "}
+          <span className="text-sm font-normal text-muted-foreground">
+            ({lectures.length})
+          </span>
+        </h2>
+        {lectureLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : lectureError ? (
+          <Card className="shadow-sm">
+            <EmptyState
+              icon={ListVideo}
+              title="Could not load lectures"
+              description="Something went wrong while fetching this course's lectures."
+              action={
+                <Button variant="outline" className="h-11" onClick={() => refetch()}>
+                  Try again
+                </Button>
+              }
+            />
+          </Card>
+        ) : lectures.length === 0 ? (
+          <Card className="shadow-sm">
+            <EmptyState
+              icon={ListVideo}
+              title="No lectures yet"
+              description="Create your first lecture above — a course needs at least one lecture before it can be published."
+            />
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {lectures.map((lecture, index) => (
+              <Lecture key={lecture._id} lecture={lecture} index={index} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
