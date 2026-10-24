@@ -29,7 +29,7 @@ const BuyCourseButton = ({ courseId }) => {
     <Button
       disabled={isLoading}
       onClick={purchaseCourseHandler}
-      className="w-full"
+      className="h-11 w-full"
     >
       {isLoading ? (
         <>

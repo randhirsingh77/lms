@@ -1,20 +1,29 @@
 import BuyCourseButton from "@/components/BuyCourseButton";
+import { EmptyState, PageShell } from "@/components/SiteUI";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useGetCourseDetailWithStatusQuery } from "@/features/api/purchaseApi";
 import DOMPurify from "dompurify";
-import { BadgeInfo, Lock, PlayCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeInfo,
+  Lock,
+  PlayCircle,
+  ShoppingCart,
+  Users,
+} from "lucide-react";
 import React from "react";
 import ReactPlayer from "react-player";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 const CourseDetail = () => {
   const params = useParams();
@@ -23,98 +32,180 @@ const CourseDetail = () => {
   const { data, isLoading, isError } =
     useGetCourseDetailWithStatusQuery(courseId);
 
-  if (isLoading) return <h1>Loading...</h1>;
-  if (isError) return <h>Failed to load course details</h>;
+  if (isLoading) {
+    return (
+      <div>
+        <div className="bg-primary">
+          <PageShell className="space-y-3 py-10">
+            <Skeleton className="h-9 w-2/3 bg-primary-foreground/20" />
+            <Skeleton className="h-5 w-1/3 bg-primary-foreground/20" />
+          </PageShell>
+        </div>
+        <PageShell className="py-8">
+          <Skeleton className="h-64 w-full" />
+        </PageShell>
+      </div>
+    );
+  }
+  if (isError || !data?.course) {
+    return (
+      <PageShell className="py-14">
+        <EmptyState
+          title="Failed to load course details"
+          description="This course couldn't be loaded. It may have been removed, or something went wrong."
+          action={
+            <Button asChild className="h-10">
+              <Link to="/">Back to courses</Link>
+            </Button>
+          }
+        />
+      </PageShell>
+    );
+  }
 
   const { course, purchased } = data;
 
   const handleContinueCourse = () => {
-    if(purchased){
-      navigate(`/course-progress/${courseId}`)
+    if (purchased) {
+      navigate(`/course-progress/${courseId}`);
     }
-  }
+  };
 
   return (
-    <div className="space-y-5">
-      <div className="bg-[#2D2F31] text-white">
-        <div className="max-w-7xl mx-auto py-8 px-4 md:px-8 flex flex-col gap-2">
-          <h1 className="font-bold text-2xl md:text-3xl">
+    <div>
+      {/* Course header band — primary token surface, same family as the
+          auth brand panel (was a hardcoded #2D2F31 hex block). */}
+      <div className="bg-primary text-primary-foreground">
+        <PageShell className="space-y-3 py-10">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-foreground/80 transition-colors hover:text-primary-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> All courses
+          </Link>
+          <h1 className="max-w-3xl text-2xl font-bold tracking-tight md:text-3xl">
             {course?.courseTitle}
           </h1>
-          <p className="text-base md:text-lg">{course?.subTitle}</p>
-          <p>
-            Created By{" "}
-            <span className="text-[#C0C4FC] underline italic">
+          <p className="max-w-2xl text-base text-primary-foreground/85 md:text-lg">
+            {course?.subTitle}
+          </p>
+          <p className="text-sm">
+            Created by{" "}
+            <span className="font-medium underline underline-offset-4">
               {course?.creator?.name}
             </span>
           </p>
-          <div className="flex items-center gap-2 text-sm">
-            <BadgeInfo size={16} />
-            <p>Last updated {course?.createdAt?.split("T")[0]}</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-sm text-primary-foreground/85">
+            <span className="inline-flex items-center gap-1.5">
+              <BadgeInfo size={16} />
+              Last updated {course?.createdAt?.split("T")[0]}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Users size={16} />
+              {course?.enrolledStudents?.length ?? 0} students enrolled
+            </span>
           </div>
-          <p>Students enrolled: {course?.enrolledStudents?.length ?? 0}</p>
-        </div>
+        </PageShell>
       </div>
-      <div className="max-w-7xl mx-auto my-5 px-4 md:px-8 flex flex-col lg:flex-row justify-between gap-10">
-        <div className="w-full lg:w-1/2 space-y-5">
-          <h1 className="font-bold text-xl md:text-2xl">Description</h1>
-          {/* The description is instructor-written rich text (Jodit). It
-              MUST be sanitised before hitting the DOM: rendering it raw
-              let any instructor account inject <script>/event handlers
-              into every student's browser (stored XSS). DOMPurify keeps
-              the formatting tags and strips anything executable. */}
-          <div
-            className="text-sm"
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(course.description || ""),
-            }}
-          />
+
+      <PageShell className="grid gap-10 py-10 lg:grid-cols-[1fr_380px]">
+        <div className="min-w-0 space-y-8">
+          <section className="space-y-3">
+            <h2 className="text-xl font-bold tracking-tight md:text-2xl">
+              Description
+            </h2>
+            {/* The description is instructor-written rich text (Jodit). It
+                MUST be sanitised before hitting the DOM: rendering it raw
+                let any instructor account inject <script>/event handlers
+                into every student's browser (stored XSS). DOMPurify keeps
+                the formatting tags and strips anything executable. */}
+            <div
+              className="leading-relaxed text-muted-foreground [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(course.description || ""),
+              }}
+            />
+          </section>
+
           <Card>
             <CardHeader>
               <CardTitle>Course Content</CardTitle>
-              <CardDescription>{course.lectures?.length ?? 0} lectures</CardDescription>
+              <CardDescription>
+                {course.lectures?.length ?? 0} lectures
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {course.lectures.map((lecture, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-sm">
-                  <span>
-                    {lecture.isPreviewFree || purchased ? (
-                      <PlayCircle size={14} />
-                    ) : (
-                      <Lock size={14} />
-                    )}
-                  </span>
-                  <p>{lecture.lectureTitle}</p>
+            <CardContent>
+              {(course.lectures?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No lectures have been added to this course yet.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {course.lectures.map((lecture) => {
+                    const playable = lecture.isPreviewFree || purchased;
+                    return (
+                      <div
+                        key={lecture._id}
+                        className="flex items-center justify-between gap-3 py-2.5 text-sm"
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          {playable ? (
+                            <PlayCircle size={16} className="shrink-0 text-primary" />
+                          ) : (
+                            <Lock size={16} className="shrink-0 text-muted-foreground" />
+                          )}
+                          <span className="truncate">{lecture.lectureTitle}</span>
+                        </span>
+                        {lecture.isPreviewFree ? (
+                          <Badge variant="secondary" className="shrink-0">
+                            Preview
+                          </Badge>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
         </div>
-        <div className="w-full lg:w-1/3">
-          <Card>
-            <CardContent className="p-4 flex flex-col">
-              <div className="w-full aspect-video mb-4">
-                <ReactPlayer
-                  width="100%"
-                  height={"100%"}
-                  url={course.lectures?.[0]?.videoUrl}
-                  controls={true}
-                />
+
+        <div className="min-w-0">
+          <Card className="overflow-hidden py-0 lg:sticky lg:top-24">
+            <div className="aspect-video w-full bg-black">
+              <ReactPlayer
+                width="100%"
+                height={"100%"}
+                url={course.lectures?.[0]?.videoUrl}
+                controls={true}
+              />
+            </div>
+            <CardContent className="space-y-3 p-5">
+              <p className="text-sm text-muted-foreground">
+                {course.lectures?.[0]?.lectureTitle || "Course preview"}
+              </p>
+              <Separator />
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-muted-foreground">Course price</span>
+                <span className="text-2xl font-bold">₹{course.coursePrice}</span>
               </div>
-              <h1>{course.lectures?.[0]?.lectureTitle}</h1>
-              <Separator className="my-2" />
-              <h1 className="text-lg md:text-xl font-semibold">Course Price</h1>
-            </CardContent>
-            <CardFooter className="flex justify-center p-4">
               {purchased ? (
-                <Button onClick={handleContinueCourse} className="w-full">Continue Course</Button>
+                <Button onClick={handleContinueCourse} className="h-11 w-full">
+                  Continue Course
+                </Button>
               ) : (
                 <BuyCourseButton courseId={courseId} />
               )}
-            </CardFooter>
+              {!purchased ? (
+                <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  Secure checkout via Stripe
+                </p>
+              ) : null}
+            </CardContent>
           </Card>
         </div>
-      </div>
+      </PageShell>
     </div>
   );
 };

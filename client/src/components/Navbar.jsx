@@ -1,4 +1,4 @@
-import { Menu, School } from "lucide-react";
+import { GraduationCap, Menu } from "lucide-react";
 import React, { useEffect } from "react";
 import {
   DropdownMenu,
@@ -11,21 +11,43 @@ import {
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import DarkMode from "@/DarkMode";
+import DarkMode from "@/components/DarkMode";
 import {
   Sheet,
   SheetClose,
   SheetContent,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "./ui/sheet";
-import { Separator } from "@radix-ui/react-dropdown-menu";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useLogoutUserMutation } from "@/features/api/authApi";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
+import { cn } from "@/lib/utils";
+
+const initialsOf = (name) =>
+  (name || "?")
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+const Brand = () => (
+  <Link to="/" className="flex shrink-0 items-center gap-2">
+    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <GraduationCap className="h-5 w-5" />
+    </span>
+    <span className="text-xl font-bold tracking-tight">E-Learning</span>
+  </Link>
+);
+
+const navLinkClass = ({ isActive }) =>
+  cn(
+    "text-sm font-medium transition-colors hover:text-foreground",
+    isActive ? "text-foreground" : "text-muted-foreground"
+  );
 
 const Navbar = () => {
   const { user } = useSelector((store) => store.auth);
@@ -43,40 +65,54 @@ const Navbar = () => {
   }, [isSuccess]);
 
   return (
-    <div className="h-16 dark:bg-[#020817] bg-white border-b dark:border-b-gray-800 border-b-gray-200 fixed top-0 left-0 right-0 duration-300 z-10">
-      {/* Desktop */}
-      <div className="max-w-7xl mx-auto hidden md:flex justify-between items-center gap-10 h-full">
-        <div className="flex items-center gap-2">
-          <School size={"30"} />
-          <Link to="/">
-            <h1 className="hidden md:block font-extrabold text-2xl">
-              E-Learning
-            </h1>
-          </Link>
-        </div>
-        {/* User icons and dark mode icon  */}
+    <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
+          <Brand />
+          <nav className="hidden items-center gap-6 md:flex">
+            <NavLink to="/course/search?query=" className={navLinkClass}>
+              Browse Courses
+            </NavLink>
+            {user ? (
+              <NavLink to="/my-learning" className={navLinkClass}>
+                My Learning
+              </NavLink>
+            ) : null}
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden md:block">
+            <DarkMode />
+          </div>
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Avatar>
-                  <AvatarImage
-                    src={user?.photoUrl || "https://github.com/shadcn.png"}
-                    alt="@shadcn"
-                  />
-                  <AvatarFallback>CN</AvatarFallback>
-                </Avatar>
+                <button
+                  type="button"
+                  aria-label="Open account menu"
+                  className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user?.photoUrl || undefined} alt="" />
+                    <AvatarFallback>{initialsOf(user?.name)}</AvatarFallback>
+                  </Avatar>
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel className="space-y-0.5">
+                  <p className="truncate">{user.name}</p>
+                  <p className="truncate text-xs font-normal text-muted-foreground">
+                    {user.email}
+                  </p>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <Link to="my-learning">My learning</Link>
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-learning">My learning</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    {" "}
-                    <Link to="profile">Edit Profile</Link>{" "}
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">Edit Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={logoutHandler}>
                     Log out
@@ -85,71 +121,121 @@ const Navbar = () => {
                 {user?.role === "instructor" && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem><Link to="/admin/dashboard">Dashboard</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/dashboard">Dashboard</Link>
+                    </DropdownMenuItem>
                   </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => navigate("/login")}>
+            <div className="hidden items-center gap-2 md:flex">
+              <Button variant="outline" className="h-10" onClick={() => navigate("/login")}>
                 Login
               </Button>
-              <Button onClick={() => navigate("/login")}>Signup</Button>
+              <Button className="h-10" onClick={() => navigate("/signup")}>
+                Get Started
+              </Button>
             </div>
           )}
-          <DarkMode />
+          <div className="md:hidden">
+            <MobileNavbar user={user} onLogout={logoutHandler} />
+          </div>
         </div>
       </div>
-      {/* Mobile device  */}
-      <div className="flex md:hidden items-center justify-between px-4 h-full">
-        <h1 className="font-extrabold text-2xl">E-learning</h1>
-        <MobileNavbar user={user} onLogout={logoutHandler}/>
-      </div>
-    </div>
+    </header>
   );
 };
 
 export default Navbar;
 
-const MobileNavbar = ({user, onLogout}) => {
-  const navigate = useNavigate();
-  
+const MobileNavbar = ({ user, onLogout }) => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button
-          size="icon"
-          className="rounded-full hover:bg-gray-200"
-          variant="outline"
-        >
-          <Menu />
+        <Button size="icon" variant="outline" className="h-10 w-10" aria-label="Open menu">
+          <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex flex-col">
-        <SheetHeader className="flex flex-row items-center justify-between mt-5">
-          <SheetTitle> <Link to="/">E-Learning</Link></SheetTitle>
+      <SheetContent className="flex flex-col p-6">
+        <SheetHeader className="flex flex-row items-center justify-between">
+          <SheetTitle>
+            <Brand />
+          </SheetTitle>
           <DarkMode />
         </SheetHeader>
-        <Separator className="mr-1" />
-        <nav className="flex flex-col space-y-4 ml-4">
-          <Link to="/my-learning">My Learning</Link>
-          <Link to="/profile">Edit Profile</Link>
+
+        {user ? (
+          <div className="flex items-center gap-3 border-b pb-5">
+            <Avatar className="h-11 w-11">
+              <AvatarImage src={user?.photoUrl || undefined} alt="" />
+              <AvatarFallback>{initialsOf(user?.name)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate font-medium">{user.name}</p>
+              <p className="truncate text-sm capitalize text-muted-foreground">
+                {user.role}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <nav className="flex flex-col gap-1 text-base font-medium">
+          <SheetClose asChild>
+            <Link to="/" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+              Home
+            </Link>
+          </SheetClose>
+          <SheetClose asChild>
+            <Link to="/course/search?query=" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+              Browse Courses
+            </Link>
+          </SheetClose>
           {user ? (
-            <button type="button" className="text-left" onClick={onLogout}>
-              Log out
-            </button>
-          ) : (
-            <Link to="/login">Login</Link>
-          )}
+            <>
+              <SheetClose asChild>
+                <Link to="/my-learning" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+                  My Learning
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link to="/profile" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+                  Edit Profile
+                </Link>
+              </SheetClose>
+              {user?.role === "instructor" ? (
+                <SheetClose asChild>
+                  <Link to="/admin/dashboard" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+                    Dashboard
+                  </Link>
+                </SheetClose>
+              ) : null}
+            </>
+          ) : null}
         </nav>
-        {user?.role === "instructor" && (
-          <SheetFooter className="mt-0">
+
+        <div className="mt-auto flex flex-col gap-2 border-t pt-5">
+          {user ? (
             <SheetClose asChild>
-              <Button type="submit" onClick={()=> navigate("/admin/dashboard")}>Dashboard</Button>
+              <Button variant="outline" className="h-11 w-full" onClick={onLogout}>
+                Log out
+              </Button>
             </SheetClose>
-          </SheetFooter>
-        )}
+          ) : (
+            <>
+              <SheetClose asChild>
+                <Button asChild className="h-11 w-full">
+                  <Link to="/signup">Get Started</Link>
+                </Button>
+              </SheetClose>
+              <SheetClose asChild>
+                <Button asChild variant="outline" className="h-11 w-full">
+                  <Link to="/login">Login</Link>
+                </Button>
+              </SheetClose>
+            </>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );

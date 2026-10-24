@@ -1,15 +1,18 @@
+import { EmptyState, PageHeader, PageShell } from "@/components/SiteUI";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCompleteCourseMutation,
   useGetCourseProgressQuery,
   useInCompleteCourseMutation,
   useUpdateLectureProgressMutation,
 } from "@/features/api/courseProgressApi";
-import { CheckCircle, CheckCircle2, CirclePlay } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CheckCircle, CheckCircle2, CirclePlay, VideoOff } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const CourseProgress = () => {
@@ -37,12 +40,36 @@ const CourseProgress = () => {
       refetch();
       toast.success(markInCompleteData?.message);
     }
-  }, [completedSuccess, inCompletedSuccess]);
+  }, [completedSuccess, inCompletedSuccess, markCompleteData, markInCompleteData, refetch]);
 
   const [currentLecture, setCurrentLecture] = useState(null);
 
-  if (isLoading) return <p>Loading...</p>;
-  if (isError) return <p>Failed to load course details</p>;
+  if (isLoading) {
+    return (
+      <PageShell className="space-y-6 py-8">
+        <Skeleton className="h-9 w-1/2" />
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          <Skeleton className="aspect-video w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </PageShell>
+    );
+  }
+  if (isError || !data?.data) {
+    return (
+      <PageShell className="py-14">
+        <EmptyState
+          title="Failed to load course details"
+          description="Your progress couldn't be loaded right now. Please try again."
+          action={
+            <Button asChild className="h-10">
+              <Link to="/my-learning">Back to my learning</Link>
+            </Button>
+          }
+        />
+      </PageShell>
+    );
+  }
 
   const { courseDetails, progress, completed } = data.data;
   const { courseTitle } = courseDetails;
@@ -51,12 +78,19 @@ const CourseProgress = () => {
   // lectures[0] unconditionally and crash the whole page.
   if (!courseDetails.lectures || courseDetails.lectures.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto p-4">
-        <h1 className="text-2xl font-bold">{courseTitle}</h1>
-        <p className="mt-4 text-gray-600 dark:text-gray-300">
-          This course has no lectures yet. Please check back later.
-        </p>
-      </div>
+      <PageShell className="py-10">
+        <PageHeader title={courseTitle} className="mb-8" />
+        <EmptyState
+          icon={VideoOff}
+          title="No lectures yet"
+          description="This course has no lectures yet. Please check back later."
+          action={
+            <Button asChild className="h-10">
+              <Link to="/my-learning">Back to my learning</Link>
+            </Button>
+          }
+        />
+      </PageShell>
     );
   }
 
@@ -78,7 +112,6 @@ const CourseProgress = () => {
     handleLectureProgress(lecture._id);
   };
 
-
   const handleCompleteCourse = async () => {
     await completeCourse(courseId);
   };
@@ -86,94 +119,98 @@ const CourseProgress = () => {
     await inCompleteCourse(courseId);
   };
 
-  return (
-    <div className="max-w-7xl mx-auto p-4">
-      {/* Display course name  */}
-      <div className="flex justify-between mb-4">
-        <h1 className="text-2xl font-bold">{courseTitle}</h1>
-        <Button
-          onClick={completed ? handleInCompleteCourse : handleCompleteCourse}
-          variant={completed ? "outline" : "default"}
-        >
-          {completed ? (
-            <div className="flex items-center">
-              <CheckCircle className="h-4 w-4 mr-2" /> <span>Completed</span>{" "}
-            </div>
-          ) : (
-            "Mark as completed"
-          )}
-        </Button>
-      </div>
+  const activeLecture = currentLecture || initialLecture;
+  const activeIndex = courseDetails.lectures.findIndex(
+    (lec) => lec._id === activeLecture._id
+  );
 
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Video section  */}
-        <div className="flex-1 md:w-3/5 h-fit rounded-lg shadow-lg p-4">
-          <div>
-            <video
-              src={currentLecture?.videoUrl || initialLecture?.videoUrl}
-              controls
-              className="w-full h-auto md:rounded-lg"
-              onPlay={() =>
-                handleLectureProgress(currentLecture?._id || initialLecture._id)
-              }
-            />
+  return (
+    <PageShell className="py-8">
+      <PageHeader
+        title={courseTitle}
+        className="mb-6"
+        action={
+          <Button
+            onClick={completed ? handleInCompleteCourse : handleCompleteCourse}
+            variant={completed ? "outline" : "default"}
+            className="h-11"
+          >
+            {completed ? (
+              <span className="flex items-center">
+                <CheckCircle className="mr-2 h-4 w-4" /> Completed
+              </span>
+            ) : (
+              "Mark as completed"
+            )}
+          </Button>
+        }
+      />
+
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px]">
+        {/* Video section */}
+        <Card className="gap-0 overflow-hidden py-0">
+          <video
+            src={activeLecture?.videoUrl}
+            controls
+            className="aspect-video w-full bg-black"
+            onPlay={() => handleLectureProgress(activeLecture._id)}
+          />
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground">
+              Lecture {activeIndex + 1} of {courseDetails.lectures.length}
+            </p>
+            <h2 className="mt-1 text-lg font-semibold">
+              {activeLecture.lectureTitle}
+            </h2>
           </div>
-          {/* Display current watching lecture title */}
-          <div className="mt-2 ">
-            <h3 className="font-medium text-lg">
-              {`Lecture ${
-                courseDetails.lectures.findIndex(
-                  (lec) =>
-                    lec._id === (currentLecture?._id || initialLecture._id)
-                ) + 1
-              } : ${
-                currentLecture?.lectureTitle || initialLecture.lectureTitle
-              }`}
-            </h3>
+        </Card>
+
+        {/* Lecture list */}
+        <Card className="gap-0 overflow-hidden py-0">
+          <div className="border-b px-5 py-4">
+            <h2 className="font-semibold">Course lectures</h2>
+            <p className="text-sm text-muted-foreground">
+              {progress.filter((p) => p.viewed).length} of{" "}
+              {courseDetails.lectures.length} watched
+            </p>
           </div>
-        </div>
-        {/* Lecture Sidebar  */}
-        <div className="flex flex-col w-full md:w-2/5 border-t md:border-t-0 md:border-l border-gray-200 md:pl-4 pt-4 md:pt-0">
-          <h2 className="font-semibold text-xl mb-4">Course Lecture</h2>
-          <div className="flex-1 overflow-y-auto">
-            {courseDetails?.lectures.map((lecture) => (
-              <Card
-                key={lecture._id}
-                className={`mb-3 hover:cursor-pointer transition transform ${
-                  lecture._id === currentLecture?._id
-                    ? "bg-gray-200 dark:dark:bg-gray-800"
-                    : ""
-                } `}
-                onClick={() => handleSelectLecture(lecture)}
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div className="flex items-center">
-                    {isLectureCompleted(lecture._id) ? (
-                      <CheckCircle2 size={24} className="text-green-500 mr-2" />
-                    ) : (
-                      <CirclePlay size={24} className="text-gray-500 mr-2" />
-                    )}
-                    <div>
-                      <CardTitle className="text-lg font-medium">
-                        {lecture.lectureTitle}
-                      </CardTitle>
-                    </div>
-                  </div>
-                  {isLectureCompleted(lecture._id) && (
-                    <Badge
-                      variant={"outline"}
-                      className="bg-green-200 text-green-600"
-                    >
+          <div className="max-h-[560px] divide-y overflow-y-auto">
+            {courseDetails.lectures.map((lecture, idx) => {
+              const watched = isLectureCompleted(lecture._id);
+              const isActive = lecture._id === activeLecture._id;
+              return (
+                <button
+                  key={lecture._id}
+                  type="button"
+                  onClick={() => handleSelectLecture(lecture)}
+                  className={cn(
+                    "flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-accent",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                    isActive && "bg-accent"
+                  )}
+                >
+                  {watched ? (
+                    <CheckCircle2 className="h-6 w-6 shrink-0 text-primary" />
+                  ) : (
+                    <CirclePlay className="h-6 w-6 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {idx + 1}. {lecture.lectureTitle}
+                    </span>
+                  </span>
+                  {watched ? (
+                    <Badge variant="secondary" className="shrink-0">
                       Completed
                     </Badge>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
-        </div>
+        </Card>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

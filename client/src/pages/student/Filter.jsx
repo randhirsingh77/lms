@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
@@ -10,22 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { CATEGORIES } from "@/pages/admin/course/categories";
 import React, { useState } from "react";
 
-const categories = [
-  { id: "nextjs", label: "Next JS" },
-  { id: "data science", label: "Data Science" },
-  { id: "frontend development", label: "Frontend Development" },
-  { id: "fullstack development", label: "Fullstack Development" },
-  { id: "mern stack development", label: "MERN Stack Development" },
-  { id: "backend development", label: "Backend Development" },
-  { id: "javascript", label: "Javascript" },
-  { id: "python", label: "Python" },
-  { id: "docker", label: "Docker" },
-  { id: "mongodb", label: "MongoDB" },
-  { id: "html", label: "HTML" },
-];
-
+// Search filters in one card: sort-by-price select + the canonical
+// category list (the same values AddCourse stores, imported — the list
+// used to be a second hand-copied array here that could drift).
 const Filter = ({ handleFilterChange }) => {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [sortByPrice, setSortByPrice] = useState("");
@@ -46,13 +37,19 @@ const Filter = ({ handleFilterChange }) => {
   const selectByPriceHandler = (selectedValue) => {
     setSortByPrice(selectedValue);
     handleFilterChange(selectedCategories, selectedValue);
-  }
+  };
+
   return (
-    <div className="w-full md:w-[20%]">
-      <div className="flex items-center justify-between">
-        <h1 className="font-semibold text-lg md:text-xl">Filter Options</h1>
+    <Card className="h-fit w-full shrink-0 p-5 md:sticky md:top-24 md:w-64">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold">Filter Options</h2>
+      </div>
+      <div className="mt-4">
+        <Label htmlFor="sort-by-price" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Sort by price
+        </Label>
         <Select onValueChange={selectByPriceHandler}>
-          <SelectTrigger>
+          <SelectTrigger id="sort-by-price" className="w-full">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -64,22 +61,33 @@ const Filter = ({ handleFilterChange }) => {
           </SelectContent>
         </Select>
       </div>
-      <Separator className="my-4" />
+      <Separator className="my-5" />
       <div>
-        <h1 className="font-semibold mb-2">CATEGORY</h1>
-        {categories.map((category) => (
-          <div key={category.id} className="flex items-center space-x-2 my-2">
-            <Checkbox
-              id={category.id}
-              onCheckedChange={() => handleCategoryChange(category.id)}
-            />
-            <Label htmlFor={category.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-              {category.label}
-            </Label>
-          </div>
-        ))}
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Category
+        </h3>
+        <div className="space-y-0.5">
+          {CATEGORIES.map((category) => (
+            <div
+              key={category.value}
+              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+            >
+              <Checkbox
+                id={category.value}
+                checked={selectedCategories.includes(category.value)}
+                onCheckedChange={() => handleCategoryChange(category.value)}
+              />
+              <Label
+                htmlFor={category.value}
+                className="flex-1 cursor-pointer text-sm font-medium leading-none"
+              >
+                {category.label}
+              </Label>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

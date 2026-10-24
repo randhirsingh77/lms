@@ -1,41 +1,51 @@
-import React from "react";
-import Course from "./Course";
+import CourseCard from "@/components/CourseCard";
+import {
+  CourseGridSkeleton,
+  EmptyState,
+  PageHeader,
+  PageShell,
+} from "@/components/SiteUI";
+import { Button } from "@/components/ui/button";
 import { useLoadUserQuery } from "@/features/api/authApi";
+import { BookOpen } from "lucide-react";
+import React from "react";
+import { Link } from "react-router-dom";
 
-const MyLearning = () => { 
-  const {data, isLoading} = useLoadUserQuery();
+const MyLearning = () => {
+  const { data, isLoading } = useLoadUserQuery();
+  const myLearning = data?.user?.enrolledCourses || [];
 
-  const myLearning = data?.user.enrolledCourses || [];
   return (
-    <div className="max-w-4xl mx-auto my-10 px-4 md:px-0">
-      <h1 className="font-bold text-2xl">MY LEARNING</h1>
-      <div className="my-5">
-        {isLoading ? (
-          <MyLearningSkeleton />
-        ) : myLearning.length === 0 ? (
-          <p>You are not enrolled in any course.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {myLearning.map((course, index) => (
-              <Course key={index} course={course}/>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <PageShell className="py-10">
+      <PageHeader
+        title="My Learning"
+        description="Courses you're enrolled in — continue where you left off."
+        className="mb-8"
+      />
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <CourseGridSkeleton count={3} />
+        </div>
+      ) : myLearning.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="No courses yet"
+          description="You are not enrolled in any course yet. Browse the catalogue and pick your first one."
+          action={
+            <Button asChild className="h-10">
+              <Link to="/course/search?query=">Browse courses</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {myLearning.map((course) => (
+            <CourseCard key={course._id} course={course} />
+          ))}
+        </div>
+      )}
+    </PageShell>
   );
 };
 
 export default MyLearning;
-
-// Skeleton component for loading state
-const MyLearningSkeleton = () => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-    {[...Array(3)].map((_, index) => (
-      <div
-        key={index}
-        className="bg-gray-300 dark:bg-gray-700 rounded-lg h-40 animate-pulse"
-      ></div>
-    ))}
-  </div>
-);
