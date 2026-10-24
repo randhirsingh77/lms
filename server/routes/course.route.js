@@ -10,7 +10,10 @@ const router = express.Router();
 // "categories" is captured as a course id and rejected by validateIds.
 router.route("/categories").get(getCategories);
 router.route("/category").post(isAuthenticated, isInstructor, createCategory);
-router.route("/").post(isAuthenticated,createCourse);
+// Creating a course is instructor work — the route used to accept any
+// logged-in account, so a student could mint courses via the API even
+// though the UI never shows them the button.
+router.route("/").post(isAuthenticated, isInstructor, createCourse);
 router.route("/search").get(isAuthenticated, searchCourse);
 router.route("/published-courses").get( getPublishedCourse);
 router.route("/").get(isAuthenticated,getCreatorCourses);

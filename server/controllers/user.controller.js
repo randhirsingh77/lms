@@ -254,14 +254,22 @@ export const updateProfile = async (req,res) => {
                 await deleteMediaFromCloudinary(publicId);
             }
 
-            // upload new photo
-            const cloudResponse = await uploadMedia(profilePhoto.path);
-            // The local temp copy has done its job — don't leak disk.
+            // Upload the new photo. A provider failure used to escape to
+            // the outer catch and surface as the generic "Failed to
+            // update profile" — the user couldn't tell the photo (not
+            // their text fields) was the problem — and the temp file was
+            // left on disk. Fail with the specific reason, always clean up.
+            let cloudResponse = null;
+            try {
+                cloudResponse = await uploadMedia(profilePhoto.path);
+            } catch {
+                cloudResponse = null;
+            }
             fs.unlink(profilePhoto.path, () => {});
             if(!cloudResponse?.secure_url){
                 return res.status(500).json({
                     success:false,
-                    message:"Failed to upload profile photo"
+                    message:"Failed to upload profile photo. Please try again."
                 })
             }
             updatedData.photoUrl = cloudResponse.secure_url;

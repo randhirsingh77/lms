@@ -139,6 +139,18 @@ const assertCourseOwner = (course, req, res) => {
     return true;
 };
 
+// Read-access helpers (bug-hunt round): ownership was enforced on WRITES
+// but several READ endpoints handed drafts and paid content to any
+// logged-in account. The rules now:
+//  - an UNPUBLISHED course is visible only to its creator (404 to anyone
+//    else, so its existence isn't even confirmed);
+//  - a published course's identity is public, but its non-preview
+//    lectures (and their video URLs) belong to the creator and to
+//    enrolled students.
+const isCourseOwner = (course, req) => String(course.creator) === String(req.id);
+const isEnrolledIn = (course, req) =>
+    (course.enrolledStudents || []).some((id) => String(id) === String(req.id));
+
 export const searchCourse = async (req,res) => {
     try {
         const {query = "", categories, sortByPrice =""} = req.query;
@@ -185,7 +197,11 @@ export const searchCourse = async (req,res) => {
             sortOptions.coursePrice = -1; // descending
         }
 
-        let courses = await Course.find(searchCriteria).populate({path:"creator", select:"name photoUrl"}).sort(sortOptions);
+        // select("-enrolledStudents"): the result rows used to embed the
+        // raw list of enrolled students' user ids — nobody consuming
+        // search results needs it, and a public catalogue must not hand
+        // out the roster of who bought what.
+        let courses = await Course.find(searchCriteria).select("-enrolledStudents").populate({path:"creator", select:"name photoUrl"}).sort(sortOptions);
 
         return res.status(200).json({
             success:true,
@@ -203,7 +219,9 @@ export const searchCourse = async (req,res) => {
 
 export const getPublishedCourse = async (_,res) => {
     try {
-        const courses = await Course.find({isPublished:true}).populate({path:"creator", select:"name photoUrl"});
+        // Same roster concern as search: this endpoint is UNAUTHENTICATED,
+        // so enrolledStudents (buyer user ids) is excluded from the payload.
+        const courses = await Course.find({isPublished:true}).select("-enrolledStudents").populate({path:"creator", select:"name photoUrl"});
         if(!courses){
             return res.status(404).json({
                 message:"Course not found"
@@ -253,8 +271,14 @@ export const editCourse = async (req,res) => {
                 const publicId = course.courseThumbnail.split("/").pop().split(".")[0];
                 await deleteMediaFromCloudinary(publicId); // delete old image
             }
-            // upload a thumbnail on clourdinary
-            courseThumbnail = await uploadMedia(thumbnail.path);
+            // upload a thumbnail on clourdinary — a provider failure used
+            // to escape as the generic "Failed to update course" 500 and
+            // leak the temp file; report the real reason and clean up.
+            try {
+                courseThumbnail = await uploadMedia(thumbnail.path);
+            } catch {
+                courseThumbnail = null;
+            }
             fs.unlink(thumbnail.path, () => {}); // temp copy no longer needed
             if(!courseThumbnail?.secure_url){
                 return res.status(500).json({
@@ -306,7 +330,9 @@ export const getCourseById = async (req,res) => {
 
         const course = await Course.findById(courseId);
 
-        if(!course){
+        // A draft is the creator's private workspace: anyone else gets
+        // the same 404 as a course that doesn't exist.
+        if(!course || (!course.isPublished && !isCourseOwner(course, req))){
             return res.status(404).json({
                 message:"Course not found!"
             })
@@ -359,13 +385,19 @@ export const getCourseLecture = async (req,res) => {
     try {
         const {courseId} = req.params;
         const course = await Course.findById(courseId).populate("lectures");
-        if(!course){
+        if(!course || (!course.isPublished && !isCourseOwner(course, req))){
             return res.status(404).json({
                 message:"Course not found"
             })
         }
+        // Full lecture list (with video URLs) only for the creator and
+        // enrolled students. Everyone else sees the free previews — the
+        // lectures themselves are the product being sold.
+        const lectures = (isCourseOwner(course, req) || isEnrolledIn(course, req))
+            ? course.lectures
+            : course.lectures.filter((lecture) => lecture.isPreviewFree);
         return res.status(200).json({
-            lectures: course.lectures
+            lectures
         });
 
     } catch (error) {
@@ -392,6 +424,16 @@ export const editLecture = async (req,res) => {
         const course = await Course.findById(courseId);
         if(!assertCourseOwner(course, req, res)) return;
 
+        // The lecture must actually belong to THAT course. Without this
+        // check, pairing any lecture id with a course you own let you
+        // edit (and graft into your course) a lecture from someone
+        // else's course.
+        if(!(course.lectures || []).some((id) => String(id) === String(lectureId))){
+            return res.status(404).json({
+                message:"Lecture not found in this course!"
+            })
+        }
+
         // update lecture (string fields accept strings only)
         if(typeof lectureTitle === "string" && lectureTitle.trim()) lecture.lectureTitle = lectureTitle;
         if(typeof videoInfo?.videoUrl === "string") lecture.videoUrl = videoInfo.videoUrl;
@@ -399,12 +441,6 @@ export const editLecture = async (req,res) => {
         if(typeof isPreviewFree === "boolean") lecture.isPreviewFree = isPreviewFree;
 
         await lecture.save();
-
-        // Ensure the course still has the lecture id if it was not aleardy added;
-        if(course && !course.lectures.includes(lecture._id)){
-            course.lectures.push(lecture._id);
-            await course.save();
-        };
         return res.status(200).json({
             lecture,
             message:"Lecture updated successfully."
@@ -426,9 +462,16 @@ export const removeLecture = async (req,res) => {
             });
         }
         // Ownership: only the creator of the course that owns this lecture
-        // may delete it.
+        // may delete it. A lecture no course references has no verifiable
+        // owner — it used to skip the check entirely and be deletable by
+        // ANY logged-in account, so it is refused like a missing lecture.
         const ownerCourse = await Course.findOne({lectures:lectureId});
-        if(ownerCourse && !assertCourseOwner(ownerCourse, req, res)) return;
+        if(!ownerCourse){
+            return res.status(404).json({
+                message:"Lecture not found!"
+            });
+        }
+        if(!assertCourseOwner(ownerCourse, req, res)) return;
 
         // Order of operations (chosen so a Cloudinary problem can never
         // strand a half-deleted lecture):
@@ -472,6 +515,21 @@ export const getLectureById = async (req,res) => {
         if(!lecture){
             return res.status(404).json({
                 message:"Lecture not found!"
+            });
+        }
+        // Same read rules as the lecture list: creator + enrolled get any
+        // lecture; anyone else only a free preview of a published course.
+        // The video URL lives on this document, so an open endpoint here
+        // handed the whole paid catalogue to any account.
+        const ownerCourse = await Course.findOne({lectures:lectureId});
+        const allowed = !!ownerCourse && (
+            isCourseOwner(ownerCourse, req) ||
+            isEnrolledIn(ownerCourse, req) ||
+            (ownerCourse.isPublished && lecture.isPreviewFree)
+        );
+        if(!allowed){
+            return res.status(403).json({
+                message:"Please purchase this course to access its lectures."
             });
         }
         return res.status(200).json({

@@ -66,6 +66,11 @@ export const createCheckoutSession = async (req, res) => {
 
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found!" });
+    // A draft isn't for sale: without this, anyone who learned an
+    // unpublished course's id could buy (and thereby unlock) a course the
+    // instructor never released — and the Stripe failure that used to
+    // mask it answered a confusing 500 instead of a clean 404.
+    if (!course.isPublished) return res.status(404).json({ message: "Course not found!" });
 
     // Already bought (a COMPLETED purchase exists): don't sell it twice.
     // Pending records from abandoned checkouts do not block a retry.
@@ -234,6 +239,17 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
       return res.status(404).json({ message: "course not found!" });
     }
 
+    const isOwner = !!course.creator && String(course.creator._id) === String(userId);
+    // Drafts are the creator's private workspace (see course.controller).
+    if (!course.isPublished && !isOwner) {
+      return res.status(404).json({ message: "course not found!" });
+    }
+
+    // Only a COMPLETED purchase counts. An abandoned checkout leaves a
+    // "pending" record, and counting it used to unlock the full course —
+    // including the progress page — without paying.
+    const purchased = await CoursePurchase.findOne({ userId, courseId, status: "completed" });
+
     // Replace the populated creator with its public summary: identity
     // fields + only the social links the instructor marked public.
     const coursePayload = course.toObject();
@@ -245,11 +261,15 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
         socialLinks: publicSocialLinksOf(course.creator),
       };
     }
-
-    // Only a COMPLETED purchase counts. An abandoned checkout leaves a
-    // "pending" record, and counting it used to unlock the full course —
-    // including the progress page — without paying.
-    const purchased = await CoursePurchase.findOne({ userId, courseId, status: "completed" });
+    // Lecture video URLs are the paid content. A non-buyer (who isn't the
+    // creator) receives the lecture list for display — titles, order,
+    // preview flags — but the playable URL only for free previews. The
+    // page used to receive every video URL and merely hide the buttons.
+    if (!purchased && !isOwner) {
+      coursePayload.lectures = (coursePayload.lectures || []).map((lecture) =>
+        lecture.isPreviewFree ? lecture : { ...lecture, videoUrl: "", publicId: "" }
+      );
+    }
 
     return res.status(200).json({
       course: coursePayload,

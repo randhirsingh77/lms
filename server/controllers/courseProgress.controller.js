@@ -1,10 +1,38 @@
 import { CourseProgress } from "../models/courseProgress.js";
 import { Course } from "../models/course.model.js";
 
+// Progress is the buyer's private learning record AND the doorway to the
+// course content (the GET returns the course with its lectures). It used
+// to answer ANY logged-in account: a stranger could read a course's full
+// lecture list through this endpoint and even mark a course they never
+// bought as completed. Access now requires enrolment or ownership —
+// the same rule the client-side route guard pretends to enforce.
+const loadCourseForProgress = async (req, res) => {
+  const { courseId } = req.params;
+  const course = await Course.findById(courseId);
+  if (!course) {
+    res.status(404).json({ message: "Course not found" });
+    return null;
+  }
+  const isOwner = String(course.creator) === String(req.id);
+  const isEnrolled = (course.enrolledStudents || []).some(
+    (id) => String(id) === String(req.id)
+  );
+  if (!isOwner && !isEnrolled) {
+    res.status(403).json({
+      message: "Please purchase this course to access its content.",
+    });
+    return null;
+  }
+  return course;
+};
+
 export const getCourseProgress = async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.id;
+
+    if (!(await loadCourseForProgress(req, res))) return;
 
     // step-1 fetch the user course progress
     let courseProgress = await CourseProgress.findOne({
@@ -13,12 +41,6 @@ export const getCourseProgress = async (req, res) => {
     }).populate("courseId");
 
     const courseDetails = await Course.findById(courseId).populate("lectures");
-
-    if (!courseDetails) {
-      return res.status(404).json({
-        message: "Course not found",
-      });
-    }
 
     // Step-2 If no progress found, return course details with an empty progress
     if (!courseProgress) {
@@ -50,6 +72,16 @@ export const updateLectureProgress = async (req, res) => {
     const { courseId, lectureId } = req.params;
     const userId = req.id;
 
+    const course = await loadCourseForProgress(req, res);
+    if (!course) return;
+
+    // The lecture must belong to this course. Any id used to be accepted,
+    // so progress could be padded with foreign or invented lectures and
+    // the completion math ran on meaningless entries.
+    if (!(course.lectures || []).some((id) => String(id) === String(lectureId))) {
+      return res.status(400).json({ message: "Lecture does not belong to this course" });
+    }
+
     // fetch or create course progress
     let courseProgress = await CourseProgress.findOne({ courseId, userId });
 
@@ -79,17 +111,14 @@ export const updateLectureProgress = async (req, res) => {
       });
     }
 
-    // if all lecture is complete
+    // Completion counts only lectures that are still part of the course
+    // (a deleted lecture's stale entry must not skew the percentage).
+    const courseLectureIds = new Set((course.lectures || []).map((id) => String(id)));
     const lectureProgressLength = courseProgress.lectureProgress.filter(
-      (lectureProg) => lectureProg.viewed
+      (lectureProg) => lectureProg.viewed && courseLectureIds.has(String(lectureProg.lectureId))
     ).length;
 
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: "Course not found" });
-    }
-
-    if (course.lectures.length === lectureProgressLength)
+    if (course.lectures.length > 0 && course.lectures.length === lectureProgressLength)
       courseProgress.completed = true;
 
     await courseProgress.save();
@@ -107,6 +136,8 @@ export const markAsCompleted = async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.id;
+
+    if (!(await loadCourseForProgress(req, res))) return;
 
     const courseProgress = await CourseProgress.findOne({ courseId, userId });
     if (!courseProgress)
@@ -128,11 +159,13 @@ export const markAsInCompleted = async (req, res) => {
     try {
       const { courseId } = req.params;
       const userId = req.id;
-  
+
+      if (!(await loadCourseForProgress(req, res))) return;
+
       const courseProgress = await CourseProgress.findOne({ courseId, userId });
       if (!courseProgress)
         return res.status(404).json({ message: "Course progress not found" });
-  
+
       courseProgress.lectureProgress.map(
         (lectureProgress) => (lectureProgress.viewed = false)
       );

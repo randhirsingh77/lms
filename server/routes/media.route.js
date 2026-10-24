@@ -3,14 +3,18 @@ import fs from "node:fs";
 import { uploadVideo } from "../utils/multer.js";
 import { uploadMedia } from "../utils/cloudinary.js";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
+import isInstructor from "../middlewares/isInstructor.js";
 
 const router = express.Router();
 
 // Auth required: this endpoint spends the owner's Cloudinary quota, and it
-// used to be open to the whole internet. It also crashed with a 500 when
-// the request had no file, because req.file.path was read unconditionally.
-// The uploader itself now enforces video type + a 200 MB cap.
-router.route("/upload-video").post(isAuthenticated, uploadVideo.single("file"), async(req,res) => {
+// used to be open to the whole internet. Instructor-only on top of that:
+// lecture videos are uploaded by course creators, never by students, so
+// a student account has no business spending upload quota. It also
+// crashed with a 500 when the request had no file, because req.file.path
+// was read unconditionally. The uploader itself now enforces video type
+// + a 200 MB cap.
+router.route("/upload-video").post(isAuthenticated, isInstructor, uploadVideo.single("file"), async(req,res) => {
     try {
         if (!req.file) {
             return res.status(400).json({
