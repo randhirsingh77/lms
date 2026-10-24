@@ -2,8 +2,8 @@ import Stripe from "stripe";
 import mongoose from "mongoose";
 import { Course } from "../models/course.model.js";
 import { CoursePurchase } from "../models/coursePurchase.model.js";
-import { Lecture } from "../models/lecture.model.js";
 import { User } from "../models/user.model.js";
+import { publicSocialLinksOf } from "../utils/publicProfile.js";
 
 // Create the Stripe client lazily: constructing it at import time with a
 // missing key throws, which used to take the WHOLE server down (even the
@@ -13,6 +13,43 @@ const getStripe = () => {
   if (!process.env.STRIPE_SECRET_KEY) return null;
   if (!stripeClient) stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
   return stripeClient;
+};
+
+// Where Stripe sends the browser back after checkout. FRONTEND_URL must be
+// a real http(s) origin — an unset or malformed value used to produce
+// "undefined/course-progress/..." (or a localhost URL in production), so
+// the student landed on a dead page after paying. Validate it, fall back
+// through the same client-origin envs the rest of the server uses, and as
+// a last resort use the deployed client origin (production) or the dev
+// origin. Warn once so a misconfigured deploy is visible in the logs.
+let frontendUrlWarned = false;
+const frontendBaseUrl = () => {
+  const candidates = [
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    ...(process.env.CLIENT_URLS || "").split(","),
+  ];
+  for (const raw of candidates) {
+    const value = (raw || "").trim();
+    if (!value) continue;
+    try {
+      const url = new URL(value);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return url.origin;
+      }
+    } catch {
+      // not a URL — keep looking through the candidates
+    }
+  }
+  if (!frontendUrlWarned) {
+    frontendUrlWarned = true;
+    console.warn(
+      "FRONTEND_URL is not a valid URL — Stripe success/cancel URLs are using a fallback origin. Set FRONTEND_URL to the deployed client origin."
+    );
+  }
+  return process.env.NODE_ENV === "production"
+    ? "https://lms-seven-gold.vercel.app"
+    : "http://localhost:5173";
 };
 
 export const createCheckoutSession = async (req, res) => {
@@ -29,6 +66,13 @@ export const createCheckoutSession = async (req, res) => {
 
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found!" });
+
+    // Already bought (a COMPLETED purchase exists): don't sell it twice.
+    // Pending records from abandoned checkouts do not block a retry.
+    const alreadyOwned = await CoursePurchase.findOne({ userId, courseId, status: "completed" });
+    if (alreadyOwned) {
+      return res.status(400).json({ success: false, message: "You already own this course." });
+    }
     // The price ALWAYS comes from the database course — the client sends
     // only the course id, never an amount. A course with no sane price
     // cannot be sold (previously this produced a NaN amount at Stripe).
@@ -63,8 +107,11 @@ export const createCheckoutSession = async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.FRONTEND_URL}/course-progress/${courseId}`, // once payment successful redirect to course progress page
-      cancel_url: `${process.env.FRONTEND_URL}/course-detail/${courseId}`,
+      // ?checkout=success tells the progress page this arrival came from
+      // a payment, so it may briefly poll while the webhook lands (the
+      // webhook and the browser redirect race each other).
+      success_url: `${frontendBaseUrl()}/course-progress/${courseId}?checkout=success`, // once payment successful redirect to course progress page
+      cancel_url: `${frontendBaseUrl()}/course-detail/${courseId}`,
       metadata: {
         courseId: courseId,
 
@@ -140,13 +187,12 @@ export const stripeWebhook = async (req, res) => {
       }
       purchase.status = "completed";
 
-      // Make all lectures visible by setting `isPreviewFree` to true
-      if (purchase.courseId && purchase.courseId.lectures.length > 0) {
-        await Lecture.updateMany(
-          { _id: { $in: purchase.courseId.lectures } },
-          { $set: { isPreviewFree: true } }
-        );
-      }
+      // NOTE: the old code here set isPreviewFree=true on EVERY lecture of
+      // the course. After the first sale, the whole course became a free
+      // preview for every visitor (CourseDetail treats preview lectures as
+      // playable) — one purchase silently unlocked the course for the
+      // world. Preview status is an instructor choice per lecture; a
+      // purchase must never change it.
 
       await purchase.save();
 
@@ -178,12 +224,26 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
     const course = await Course.findById(courseId)
       // Field allow-list: populating the creator WITHOUT a select embedded
       // the instructor's full user document — password hash included — in
-      // this public-to-students response.
-      .populate({ path: "creator", select: "name photoUrl" })
+      // this public-to-students response. socialLinks/socialPrivacy are
+      // loaded only so the payload can be reduced to the PUBLIC links
+      // below — they never leave the server unfiltered.
+      .populate({ path: "creator", select: "name photoUrl socialLinks socialPrivacy" })
       .populate({ path: "lectures" });
 
     if (!course) {
       return res.status(404).json({ message: "course not found!" });
+    }
+
+    // Replace the populated creator with its public summary: identity
+    // fields + only the social links the instructor marked public.
+    const coursePayload = course.toObject();
+    if (course.creator) {
+      coursePayload.creator = {
+        _id: course.creator._id,
+        name: course.creator.name,
+        photoUrl: course.creator.photoUrl || "",
+        socialLinks: publicSocialLinksOf(course.creator),
+      };
     }
 
     // Only a COMPLETED purchase counts. An abandoned checkout leaves a
@@ -192,7 +252,7 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
     const purchased = await CoursePurchase.findOne({ userId, courseId, status: "completed" });
 
     return res.status(200).json({
-      course,
+      course: coursePayload,
       purchased: !!purchased, // true if purchased, false otherwise
     });
   } catch (error) {

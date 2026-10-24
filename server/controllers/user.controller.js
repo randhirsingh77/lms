@@ -1,10 +1,12 @@
 import {User} from "../models/user.model.js";
+import { Course } from "../models/course.model.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { generateToken, sessionCookieOptions } from "../utils/generateToken.js";
 import { deleteMediaFromCloudinary, uploadMedia } from "../utils/cloudinary.js";
 import { isSmtpConfigured, sendPasswordResetEmail } from "../utils/mailer.js";
+import { publicSocialLinksOf, SOCIAL_KEYS } from "../utils/publicProfile.js";
 
 // Boundary validation for credential payloads. Every field must be a
 // plain STRING of sane length — an object here ({"$gt": ""}) is a NoSQL
@@ -136,17 +138,72 @@ export const getUserProfile = async (req,res) => {
         })
     }
 }
+// Profile fields the owner may edit (tasks: richer profiles, social
+// links, per-field privacy). Everything is whitelist-validated here —
+// nothing from the request body is copied blindly onto the user document.
+const PRIVACY_VALUES = ["public", "private"];
+const isHttpUrl = (value) => {
+    try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+};
+// Multipart forms carry objects as JSON strings; JSON bodies carry real
+// objects. Accept both, return null on garbage.
+const asObject = (value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+        } catch { /* fall through */ }
+    }
+    return null;
+};
+
 export const updateProfile = async (req,res) => {
     try {
         const userId = req.id;
-        const {name} = req.body || {};
+        const body = req.body || {};
+        const {name, phone, bio} = body;
         const profilePhoto = req.file;
-        if (name !== undefined && !isStr(name, 1, 100)) {
+        const fail = (message) => {
             if (profilePhoto) fs.unlink(profilePhoto.path, () => {});
-            return res.status(400).json({
-                message:"Name must be a non-empty string.",
-                success:false
-            })
+            return res.status(400).json({ message, success:false });
+        };
+        if (name !== undefined && !isStr(name, 1, 100)) return fail("Name must be a non-empty string.");
+        if (phone !== undefined && (typeof phone !== "string" || phone.trim().length > 20 ||
+            (phone.trim() && !/^[+\d][\d\s()-]{5,19}$/.test(phone.trim())))) {
+            return fail("Phone number looks invalid.");
+        }
+        if (bio !== undefined && (typeof bio !== "string" || bio.length > 1000)) {
+            return fail("Profile summary must be at most 1000 characters.");
+        }
+        // Social links: full URLs only (http/https) or empty to clear.
+        const socialLinks = asObject(body.socialLinks);
+        if (body.socialLinks !== undefined && !socialLinks) return fail("Social links must be an object.");
+        if (socialLinks) {
+            for (const key of SOCIAL_KEYS) {
+                const v = socialLinks[key];
+                if (v === undefined) continue;
+                if (typeof v !== "string" || v.trim().length > 300 || (v.trim() && !isHttpUrl(v.trim()))) {
+                    return fail(`The ${key} link must be a full http(s) URL.`);
+                }
+            }
+        }
+        const fieldPrivacy = asObject(body.fieldPrivacy);
+        if (body.fieldPrivacy !== undefined && !fieldPrivacy) return fail("Privacy settings must be an object.");
+        const socialPrivacy = asObject(body.socialPrivacy);
+        if (body.socialPrivacy !== undefined && !socialPrivacy) return fail("Privacy settings must be an object.");
+        for (const [obj, keys] of [[fieldPrivacy, ["email", "phone", "bio"]], [socialPrivacy, SOCIAL_KEYS]]) {
+            if (!obj) continue;
+            for (const key of keys) {
+                if (obj[key] !== undefined && !PRIVACY_VALUES.includes(obj[key])) {
+                    return fail(`Privacy for ${key} must be "public" or "private".`);
+                }
+            }
         }
 
         const user = await User.findById(userId);
@@ -161,6 +218,35 @@ export const updateProfile = async (req,res) => {
         // editing just your name (no file chosen) crashed with a 500.
         const updatedData = {};
         if(name) updatedData.name = name;
+        if(phone !== undefined) updatedData.phone = phone.trim();
+        if(bio !== undefined) updatedData.bio = bio.trim();
+        if (socialLinks) {
+            const next = {};
+            for (const key of SOCIAL_KEYS) {
+                next[key] = socialLinks[key] !== undefined
+                    ? socialLinks[key].trim()
+                    : (user.socialLinks?.[key] || "");
+            }
+            updatedData.socialLinks = next;
+        }
+        if (fieldPrivacy) {
+            const next = {};
+            for (const key of ["email", "phone", "bio"]) {
+                next[key] = fieldPrivacy[key] !== undefined
+                    ? fieldPrivacy[key]
+                    : (user.fieldPrivacy?.[key] || (key === "bio" ? "public" : "private"));
+            }
+            updatedData.fieldPrivacy = next;
+        }
+        if (socialPrivacy) {
+            const next = {};
+            for (const key of SOCIAL_KEYS) {
+                next[key] = socialPrivacy[key] !== undefined
+                    ? socialPrivacy[key]
+                    : (user.socialPrivacy?.[key] || "public");
+            }
+            updatedData.socialPrivacy = next;
+        }
         if(profilePhoto){
             // extract public id of the old image from the url if it exists;
             if(user.photoUrl){
@@ -196,6 +282,77 @@ export const updateProfile = async (req,res) => {
         })
     }
 }
+
+// ---------------------------------------------------------------------------
+// Public instructor profile (student-facing). Privacy is enforced HERE, on
+// the server: the payload is assembled field by field and a field marked
+// private is never copied in — hiding it in the UI would still leak it to
+// anyone who opens the API response. Defaults mirror the schema: email /
+// phone private unless the instructor chose otherwise; bio and social
+// links public unless chosen otherwise (per-platform for socials).
+// ---------------------------------------------------------------------------
+export const getPublicInstructor = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id).select("-password -resetPasswordToken -resetPasswordExpire");
+        if (!user || user.role !== "instructor") {
+            return res.status(404).json({
+                success: false,
+                message: "Instructor not found",
+            });
+        }
+        const privacyOf = (obj, key, fallback) =>
+            obj?.[key] === "public" || obj?.[key] === "private" ? obj[key] : fallback;
+
+        const instructor = {
+            _id: user._id,
+            name: user.name,
+            photoUrl: user.photoUrl || "",
+            role: user.role,
+            memberSince: user.createdAt,
+        };
+        if (privacyOf(user.fieldPrivacy, "bio", "public") === "public" && user.bio) {
+            instructor.bio = user.bio;
+        }
+        if (privacyOf(user.fieldPrivacy, "email", "private") === "public") {
+            instructor.email = user.email;
+        }
+        if (privacyOf(user.fieldPrivacy, "phone", "private") === "public" && user.phone) {
+            instructor.phone = user.phone;
+        }
+        const socials = publicSocialLinksOf(user);
+        if (Object.keys(socials).length > 0) instructor.socialLinks = socials;
+
+        // Published courses only, with COUNTS instead of the raw id arrays
+        // (enrolledStudents/lectures contain other users' and content ids
+        // that a public payload has no business listing).
+        const courses = await Course.find({ creator: user._id, isPublished: true })
+            .select("courseTitle subTitle category courseLevel coursePrice courseThumbnail enrolledStudents lectures createdAt")
+            .sort({ createdAt: -1 })
+            .lean();
+        instructor.courses = courses.map((c) => ({
+            _id: c._id,
+            courseTitle: c.courseTitle,
+            subTitle: c.subTitle,
+            category: c.category,
+            courseLevel: c.courseLevel,
+            coursePrice: c.coursePrice,
+            courseThumbnail: c.courseThumbnail,
+            createdAt: c.createdAt,
+            enrolledCount: c.enrolledStudents?.length ?? 0,
+            lectureCount: c.lectures?.length ?? 0,
+        }));
+        instructor.totalStudents = instructor.courses.reduce((sum, c) => sum + c.enrolledCount, 0);
+
+        return res.status(200).json({ success: true, instructor });
+    } catch (error) {
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load instructor profile",
+        });
+    }
+};
 
 // ---------------------------------------------------------------------------
 // Password reset (forgot → emailed link → reset) and change-password.

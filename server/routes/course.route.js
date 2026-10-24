@@ -1,10 +1,15 @@
 import express from "express";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
+import isInstructor from "../middlewares/isInstructor.js";
 import { validateIds } from "../middlewares/validateIds.js";
-import { createCourse, createLecture, editCourse, editLecture, getCourseById, getCourseLecture, getCreatorCourses, getLectureById, getPublishedCourse, removeLecture, searchCourse, togglePublishCourse } from "../controllers/course.controller.js";
+import { createCategory, createCourse, createLecture, editCourse, editLecture, getCategories, getCourseById, getCourseLecture, getCreatorCourses, getLectureById, getPublishedCourse, removeLecture, searchCourse, togglePublishCourse } from "../controllers/course.controller.js";
 import upload from "../utils/multer.js";
 const router = express.Router();
 
+// Categories must be registered BEFORE "/:courseId" — otherwise
+// "categories" is captured as a course id and rejected by validateIds.
+router.route("/categories").get(getCategories);
+router.route("/category").post(isAuthenticated, isInstructor, createCategory);
 router.route("/").post(isAuthenticated,createCourse);
 router.route("/search").get(isAuthenticated, searchCourse);
 router.route("/published-courses").get( getPublishedCourse);

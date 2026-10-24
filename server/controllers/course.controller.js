@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import { Course } from "../models/course.model.js";
 import { Lecture } from "../models/lecture.model.js";
+import { Category, categoryKeyOf } from "../models/category.model.js";
 import {deleteMediaFromCloudinary, deleteVideoFromCloudinary, uploadMedia} from "../utils/cloudinary.js";
 
 export const createCourse = async (req,res) => {
@@ -31,6 +32,93 @@ export const createCourse = async (req,res) => {
         })
     }
 }
+
+// ---------------------------------------------------------------------------
+// Categories: the built-in list (same values the client helper ships) plus
+// whatever instructors create. One list for course forms AND search
+// filters, served from GET /categories so the two can never drift apart
+// again (they used to be two hand-copied arrays).
+// ---------------------------------------------------------------------------
+export const BUILT_IN_CATEGORIES = [
+    { value: "nextjs", label: "Next JS" },
+    { value: "data science", label: "Data Science" },
+    { value: "frontend development", label: "Frontend Development" },
+    { value: "fullstack development", label: "Fullstack Development" },
+    { value: "mern stack development", label: "MERN Stack Development" },
+    { value: "backend development", label: "Backend Development" },
+    { value: "javascript", label: "Javascript" },
+    { value: "python", label: "Python" },
+    { value: "docker", label: "Docker" },
+    { value: "mongodb", label: "MongoDB" },
+    { value: "html", label: "HTML" },
+];
+
+export const getCategories = async (req, res) => {
+    try {
+        const created = await Category.find({}).sort({ name: 1 }).lean();
+        const seen = new Set(BUILT_IN_CATEGORIES.map((c) => categoryKeyOf(c.value)));
+        const merged = [...BUILT_IN_CATEGORIES];
+        for (const c of created) {
+            if (seen.has(c.nameKey)) continue;
+            seen.add(c.nameKey);
+            merged.push({ value: c.name, label: c.name });
+        }
+        merged.sort((a, b) => a.label.localeCompare(b.label));
+        return res.status(200).json({ success: true, categories: merged });
+    } catch (error) {
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load categories",
+        });
+    }
+};
+
+export const createCategory = async (req, res) => {
+    try {
+        const { name } = req.body || {};
+        if (typeof name !== "string" || !name.trim() || name.trim().length < 2 || name.trim().length > 100) {
+            return res.status(400).json({
+                success: false,
+                message: "Category name must be between 2 and 100 characters.",
+            });
+        }
+        const cleanName = name.trim().replace(/\s+/g, " ");
+        const nameKey = categoryKeyOf(cleanName);
+        if (!nameKey) {
+            return res.status(400).json({
+                success: false,
+                message: "Category name must contain letters or numbers.",
+            });
+        }
+        // A name that only re-spells a built-in (or an existing created
+        // category) is a duplicate, not a new category.
+        if (BUILT_IN_CATEGORIES.some((c) => categoryKeyOf(c.value) === nameKey)) {
+            return res.status(409).json({
+                success: false,
+                message: "That category already exists.",
+            });
+        }
+        const category = await Category.create({ name: cleanName, nameKey, createdBy: req.id });
+        return res.status(201).json({
+            success: true,
+            category: { value: category.name, label: category.name },
+            message: "Category created.",
+        });
+    } catch (error) {
+        if (error?.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: "That category already exists.",
+            });
+        }
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
+        return res.status(500).json({
+            success: false,
+            message: "Failed to create category",
+        });
+    }
+};
 
 // Escape user text before putting it into a Mongo $regex — an unbalanced
 // character like "(" used to make the query throw, and the catch below
@@ -331,26 +419,41 @@ export const editLecture = async (req,res) => {
 export const removeLecture = async (req,res) => {
     try {
         const {lectureId} = req.params;
-        // Ownership: only the creator of the course that owns this lecture
-        // may delete it.
-        const ownerCourse = await Course.findOne({lectures:lectureId});
-        if(ownerCourse && !assertCourseOwner(ownerCourse, req, res)) return;
-        const lecture = await Lecture.findByIdAndDelete(lectureId);
+        const lecture = await Lecture.findById(lectureId);
         if(!lecture){
             return res.status(404).json({
                 message:"Lecture not found!"
             });
         }
-        // delete the lecture from couldinary as well
+        // Ownership: only the creator of the course that owns this lecture
+        // may delete it.
+        const ownerCourse = await Course.findOne({lectures:lectureId});
+        if(ownerCourse && !assertCourseOwner(ownerCourse, req, res)) return;
+
+        // Order of operations (chosen so a Cloudinary problem can never
+        // strand a half-deleted lecture):
+        //  1. Delete the uploaded video while we still know its publicId.
+        //     deleteVideoFromCloudinary treats an already-missing asset as
+        //     success and logs+swallows provider errors — the file delete
+        //     is best-effort and its outcome is only logged.
+        //  2. Delete the DB record AND pull the course's reference, so the
+        //     lecture is actually gone (the old order deleted the record
+        //     first and then AWAITED the provider call — any failure or
+        //     timeout there answered 500 after partial work, the client
+        //     kept showing the lecture, and a retry found a dangling
+        //     course reference with no lecture behind it).
+        // A 200 from this endpoint now means the lecture record and the
+        // reference are both gone; a repeat delete is a clean 404.
         if(lecture.publicId){
             await deleteVideoFromCloudinary(lecture.publicId);
         }
-
-        // Remove the lecture reference from the associated course
-        await Course.updateOne(
-            {lectures:lectureId}, // find the course that contains the lecture
-            {$pull:{lectures:lectureId}} // Remove the lectures id from the lectures array
-        );
+        await Lecture.findByIdAndDelete(lectureId);
+        if(ownerCourse){
+            await Course.updateOne(
+                {_id: ownerCourse._id},
+                {$pull:{lectures:lectureId}}
+            );
+        }
 
         return res.status(200).json({
             message:"Lecture removed successfully."

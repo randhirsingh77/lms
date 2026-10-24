@@ -37,6 +37,46 @@ const userSchema = new mongoose.Schema({
         type:String,
         default:""
     },
+    // Public-profile fields (tasks: richer profiles + instructor pages).
+    // phone/bio are plain profile data the owner edits; what the PUBLIC
+    // sees is governed by fieldPrivacy / socialPrivacy below — safe
+    // defaults: contact details (email, phone) start PRIVATE, the
+    // storefront fields (bio, social links) start public. The public
+    // instructor endpoint (user.controller.getPublicInstructor) enforces
+    // this server-side — private values never enter its payload at all.
+    phone:{
+        type:String,
+        default:"",
+        trim:true,
+        maxlength:20
+    },
+    bio:{
+        type:String,
+        default:"",
+        trim:true,
+        maxlength:1000
+    },
+    socialLinks:{
+        instagram:{ type:String, default:"", trim:true, maxlength:300 },
+        youtube:{ type:String, default:"", trim:true, maxlength:300 },
+        twitter:{ type:String, default:"", trim:true, maxlength:300 },
+        linkedin:{ type:String, default:"", trim:true, maxlength:300 },
+        github:{ type:String, default:"", trim:true, maxlength:300 },
+        website:{ type:String, default:"", trim:true, maxlength:300 }
+    },
+    fieldPrivacy:{
+        email:{ type:String, enum:["public","private"], default:"private" },
+        phone:{ type:String, enum:["public","private"], default:"private" },
+        bio:{ type:String, enum:["public","private"], default:"public" }
+    },
+    socialPrivacy:{
+        instagram:{ type:String, enum:["public","private"], default:"public" },
+        youtube:{ type:String, enum:["public","private"], default:"public" },
+        twitter:{ type:String, enum:["public","private"], default:"public" },
+        linkedin:{ type:String, enum:["public","private"], default:"public" },
+        github:{ type:String, enum:["public","private"], default:"public" },
+        website:{ type:String, enum:["public","private"], default:"public" }
+    },
     // Password reset: only the SHA-256 HASH of the emailed token is
     // stored (never the token itself), with a hard expiry. Cleared on
     // use, on password change, and on a fresh forgot-password request,
