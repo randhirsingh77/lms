@@ -4,10 +4,22 @@ import { CoursePurchase } from "../models/coursePurchase.model.js";
 import { Lecture } from "../models/lecture.model.js";
 import { User } from "../models/user.model.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Create the Stripe client lazily: constructing it at import time with a
+// missing key throws, which used to take the WHOLE server down (even the
+// routes that have nothing to do with payments).
+let stripeClient = null;
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  if (!stripeClient) stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+  return stripeClient;
+};
 
 export const createCheckoutSession = async (req, res) => {
   try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({ success: false, message: "Payments are not configured on this server." });
+    }
     const userId = req.id;
     const { courseId } = req.body;
 
@@ -31,7 +43,9 @@ export const createCheckoutSession = async (req, res) => {
             currency: "inr",
             product_data: {
               name: course.courseTitle,
-              images: [course.courseThumbnail],
+              // Only send images when a thumbnail exists — [undefined]
+              // makes Stripe reject the whole session.
+              ...(course.courseThumbnail ? { images: [course.courseThumbnail] } : {}),
             },
             unit_amount: course.coursePrice * 100, // Amount in paise (lowest denomination)
           },
@@ -67,6 +81,9 @@ export const createCheckoutSession = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    // This catch used to only log, so a Stripe failure left the request
+    // hanging until the browser gave up.
+    return res.status(500).json({ success: false, message: "Failed to create checkout session" });
   }
 };
 
@@ -74,15 +91,22 @@ export const stripeWebhook = async (req, res) => {
   let event;
 
   try {
-    const payloadString = JSON.stringify(req.body, null, 2);
+    const stripe = getStripe();
     const secret = process.env.WEBHOOK_ENDPOINT_SECRET;
-
-    const header = stripe.webhooks.generateTestHeaderString({
-      payload: payloadString,
-      secret,
-    });
-
-    event = stripe.webhooks.constructEvent(payloadString, header, secret);
+    if (!stripe || !secret) {
+      return res.status(503).send("Payments are not configured on this server.");
+    }
+    // Verify the event against the signature header Stripe sent, using the
+    // RAW request body (mounted as express.raw in index.js). The old code
+    // re-stringified the parsed body and generated its OWN test header —
+    // i.e. it "verified" every payload against itself, so anyone could POST
+    // a forged checkout.session.completed and get enrolled for free, while
+    // genuine Stripe events could not be verified at all.
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      req.headers["stripe-signature"],
+      secret
+    );
   } catch (error) {
     console.error("Webhook error:", error.message);
     return res.status(400).send(`Webhook error: ${error.message}`);
@@ -147,12 +171,14 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
       .populate({ path: "creator" })
       .populate({ path: "lectures" });
 
-    const purchased = await CoursePurchase.findOne({ userId, courseId });
-    console.log(purchased);
-
     if (!course) {
       return res.status(404).json({ message: "course not found!" });
     }
+
+    // Only a COMPLETED purchase counts. An abandoned checkout leaves a
+    // "pending" record, and counting it used to unlock the full course —
+    // including the progress page — without paying.
+    const purchased = await CoursePurchase.findOne({ userId, courseId, status: "completed" });
 
     return res.status(200).json({
       course,
@@ -160,6 +186,7 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ message: "Failed to get course details" });
   }
 };
 
@@ -178,5 +205,6 @@ export const getAllPurchasedCourse = async (_, res) => {
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ message: "Failed to get purchased courses" });
   }
 };

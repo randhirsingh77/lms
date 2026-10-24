@@ -9,14 +9,13 @@ cloudinary.config({
 });
 
 export const uploadMedia = async (file) => {
-  try {
-    const uploadResponse = await cloudinary.uploader.upload(file, {
-      resource_type: "auto",
-    });
-    return uploadResponse;
-  } catch (error) {
-    console.log(error);
-  }
+  // Let upload errors throw: swallowing them here returned `undefined`,
+  // which callers then dereferenced (cloudResponse.secure_url) and turned
+  // into confusing 500s — or, worse, reported success with no file stored.
+  const uploadResponse = await cloudinary.uploader.upload(file, {
+    resource_type: "auto",
+  });
+  return uploadResponse;
 };
 export const deleteMediaFromCloudinary = async (publicId) => {
   try {

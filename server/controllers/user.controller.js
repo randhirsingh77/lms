@@ -6,7 +6,7 @@ import { deleteMediaFromCloudinary, uploadMedia } from "../utils/cloudinary.js";
 export const register = async (req,res) => {
     try {
        
-        const {name, email, password} = req.body; // patel214
+        const {name, email, password, role} = req.body;
         if(!name || !email || !password){
             return res.status(400).json({
                 success:false,
@@ -21,10 +21,16 @@ export const register = async (req,res) => {
             })
         }
         const hashedPassword = await bcrypt.hash(password, 10);
+        // The client gates the whole admin area on role === "instructor" but
+        // register used to ignore the role entirely, so every account was a
+        // student and nobody could ever reach the admin panel. Accept the
+        // role, but only the two values the schema allows.
+        const safeRole = role === "instructor" ? "instructor" : "student";
         await User.create({
             name,
             email,
-            password:hashedPassword
+            password:hashedPassword,
+            role: safeRole
         });
         return res.status(201).json({
             success:true,
@@ -120,17 +126,28 @@ export const updateProfile = async (req,res) => {
                 success:false
             }) 
         }
-        // extract public id of the old image from the url is it exists;
-        if(user.photoUrl){
-            const publicId = user.photoUrl.split("/").pop().split(".")[0]; // extract public id
-            deleteMediaFromCloudinary(publicId);
+        // Only touch the photo when a new file was actually uploaded.
+        // Previously uploadMedia(profilePhoto.path) ran unconditionally, so
+        // editing just your name (no file chosen) crashed with a 500.
+        const updatedData = {};
+        if(name) updatedData.name = name;
+        if(profilePhoto){
+            // extract public id of the old image from the url if it exists;
+            if(user.photoUrl){
+                const publicId = user.photoUrl.split("/").pop().split(".")[0]; // extract public id
+                await deleteMediaFromCloudinary(publicId);
+            }
+
+            // upload new photo
+            const cloudResponse = await uploadMedia(profilePhoto.path);
+            if(!cloudResponse?.secure_url){
+                return res.status(500).json({
+                    success:false,
+                    message:"Failed to upload profile photo"
+                })
+            }
+            updatedData.photoUrl = cloudResponse.secure_url;
         }
-
-        // upload new photo
-        const cloudResponse = await uploadMedia(profilePhoto.path);
-        const photoUrl = cloudResponse.secure_url;
-
-        const updatedData = {name, photoUrl};
         const updatedUser = await User.findByIdAndUpdate(userId, updatedData, {new:true}).select("-password");
 
         return res.status(200).json({

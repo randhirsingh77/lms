@@ -18,11 +18,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // default middleware
+// The Stripe webhook needs the RAW body to verify its signature, so it is
+// parsed here — before express.json() turns it into an object.
+app.use("/api/v1/purchase/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(cookieParser());
 
 const allowedOrigins = [
-  "http://localhost:5173", 
+  "http://localhost:5173",
+  "http://localhost:4173",
   "https://lms-seven-gold.vercel.app"
 ];
 

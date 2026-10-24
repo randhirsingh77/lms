@@ -30,24 +30,59 @@ export const createCourse = async (req,res) => {
     }
 }
 
+// Escape user text before putting it into a Mongo $regex — an unbalanced
+// character like "(" used to make the query throw, and the catch below
+// never responded, so the search request hung forever.
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Ownership guard for course mutations: any logged-in user used to be able
+// to edit, publish or add lectures to SOMEONE ELSE'S course.
+const assertCourseOwner = (course, req, res) => {
+    if (!course) {
+        res.status(404).json({ message: "Course not found!" });
+        return false;
+    }
+    if (String(course.creator) !== String(req.id)) {
+        res.status(403).json({ message: "You can only manage your own courses." });
+        return false;
+    }
+    return true;
+};
+
 export const searchCourse = async (req,res) => {
     try {
-        const {query = "", categories = [], sortByPrice =""} = req.query;
-        console.log(categories);
-        
+        const {query = "", categories, sortByPrice =""} = req.query;
+        const safeQuery = escapeRegExp(query);
+
         // create search query
         const searchCriteria = {
             isPublished:true,
             $or:[
-                {courseTitle: {$regex:query, $options:"i"}},
-                {subTitle: {$regex:query, $options:"i"}},
-                {category: {$regex:query, $options:"i"}},
+                {courseTitle: {$regex:safeQuery, $options:"i"}},
+                {subTitle: {$regex:safeQuery, $options:"i"}},
+                {category: {$regex:safeQuery, $options:"i"}},
             ]
         }
 
-        // if categories selected
-        if(categories.length > 0) {
-            searchCriteria.category = {$in: categories};
+        // The client sends categories as ONE comma-separated string
+        // ("nextjs,python"). It used to be passed straight into $in, so
+        // selecting 2+ categories matched nothing. Split it, and match
+        // case-insensitively because older courses were stored with
+        // display-case categories ("Next JS") while the filter uses ids
+        // ("nextjs").
+        const categoryList = (Array.isArray(categories) ? categories.join(",") : categories || "")
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean);
+        if(categoryList.length > 0) {
+            // Match ignoring case AND spaces: filter id "nextjs" must find a
+            // course stored with the display label "Next JS".
+            const categoryPattern = (c) =>
+                new RegExp(
+                    "^" + escapeRegExp(c).replace(/\s+/g, "").split("").map(escapeRegExp).join("\\s*") + "$",
+                    "i"
+                );
+            searchCriteria.category = { $in: categoryList.map(categoryPattern) };
         }
 
         // define sorting order
@@ -67,7 +102,10 @@ export const searchCourse = async (req,res) => {
 
     } catch (error) {
         console.log(error);
-        
+        return res.status(500).json({
+            success:false,
+            message:"Failed to search courses"
+        })
     }
 }
 
@@ -105,7 +143,7 @@ export const getCreatorCourses = async (req,res) => {
     } catch (error) {
         console.log(error);
         return res.status(500).json({
-            message:"Failed to create course"
+            message:"Failed to get creator courses"
         })
     }
 }
@@ -116,11 +154,7 @@ export const editCourse = async (req,res) => {
         const thumbnail = req.file;
 
         let course = await Course.findById(courseId);
-        if(!course){
-            return res.status(404).json({
-                message:"Course not found!"
-            })
-        }
+        if(!assertCourseOwner(course, req, res)) return;
         let courseThumbnail;
         if(thumbnail){
             if(course.courseThumbnail){
@@ -129,10 +163,31 @@ export const editCourse = async (req,res) => {
             }
             // upload a thumbnail on clourdinary
             courseThumbnail = await uploadMedia(thumbnail.path);
+            if(!courseThumbnail?.secure_url){
+                return res.status(500).json({
+                    message:"Failed to upload course thumbnail"
+                })
+            }
         }
 
- 
-        const updateData = {courseTitle, subTitle, description, category, courseLevel, coursePrice, courseThumbnail:courseThumbnail?.secure_url};
+        // Multipart forms carry only strings, and unset fields arrive as the
+        // literal text "undefined" — storing that (or casting it to Number)
+        // used to fail the whole save with a 500. Only update fields that
+        // carry a real value.
+        const clean = (v) => (v === undefined || v === "" || v === "undefined" ? undefined : v);
+        const updateData = {};
+        const textFields = {courseTitle, subTitle, description, category, courseLevel};
+        for (const [key, value] of Object.entries(textFields)) {
+            const v = clean(value);
+            if (v !== undefined) updateData[key] = v;
+        }
+        const price = clean(coursePrice);
+        if (price !== undefined && !Number.isNaN(Number(price))) {
+            updateData.coursePrice = Number(price);
+        }
+        if (courseThumbnail?.secure_url) {
+            updateData.courseThumbnail = courseThumbnail.secure_url;
+        }
 
         course = await Course.findByIdAndUpdate(courseId, updateData, {new:true});
 
@@ -144,7 +199,7 @@ export const editCourse = async (req,res) => {
     } catch (error) {
         console.log(error);
         return res.status(500).json({
-            message:"Failed to create course"
+            message:"Failed to update course"
         })
     }
 }
@@ -181,14 +236,15 @@ export const createLecture = async (req,res) => {
             })
         };
 
+        // Find the course FIRST: a lecture for a missing course used to be
+        // created anyway (orphaned in the DB) and still answered 201.
+        const course = await Course.findById(courseId);
+        if(!assertCourseOwner(course, req, res)) return;
+
         // create lecture
         const lecture = await Lecture.create({lectureTitle});
-
-        const course = await Course.findById(courseId);
-        if(course){
-            course.lectures.push(lecture._id);
-            await course.save();
-        }
+        course.lectures.push(lecture._id);
+        await course.save();
 
         return res.status(201).json({
             lecture,
@@ -234,16 +290,20 @@ export const editLecture = async (req,res) => {
             })
         }
 
+        // The course in the URL must exist and belong to the caller —
+        // checked BEFORE anything is changed.
+        const course = await Course.findById(courseId);
+        if(!assertCourseOwner(course, req, res)) return;
+
         // update lecture
         if(lectureTitle) lecture.lectureTitle = lectureTitle;
         if(videoInfo?.videoUrl) lecture.videoUrl = videoInfo.videoUrl;
         if(videoInfo?.publicId) lecture.publicId = videoInfo.publicId;
-        lecture.isPreviewFree = isPreviewFree;
+        if(typeof isPreviewFree === "boolean") lecture.isPreviewFree = isPreviewFree;
 
         await lecture.save();
 
         // Ensure the course still has the lecture id if it was not aleardy added;
-        const course = await Course.findById(courseId);
         if(course && !course.lectures.includes(lecture._id)){
             course.lectures.push(lecture._id);
             await course.save();
@@ -262,6 +322,10 @@ export const editLecture = async (req,res) => {
 export const removeLecture = async (req,res) => {
     try {
         const {lectureId} = req.params;
+        // Ownership: only the creator of the course that owns this lecture
+        // may delete it.
+        const ownerCourse = await Course.findOne({lectures:lectureId});
+        if(ownerCourse && !assertCourseOwner(ownerCourse, req, res)) return;
         const lecture = await Lecture.findByIdAndDelete(lectureId);
         if(!lecture){
             return res.status(404).json({
@@ -317,11 +381,7 @@ export const togglePublishCourse = async (req,res) => {
         const {courseId} = req.params;
         const {publish} = req.query; // true, false
         const course = await Course.findById(courseId);
-        if(!course){
-            return res.status(404).json({
-                message:"Course not found!"
-            });
-        }
+        if(!assertCourseOwner(course, req, res)) return;
         // publish status based on the query paramter
         course.isPublished = publish === "true";
         await course.save();

@@ -41,6 +41,7 @@ export const getCourseProgress = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ message: "Failed to load course progress" });
   }
 };
 
@@ -84,6 +85,9 @@ export const updateLectureProgress = async (req, res) => {
     ).length;
 
     const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
 
     if (course.lectures.length === lectureProgressLength)
       courseProgress.completed = true;
@@ -95,6 +99,7 @@ export const updateLectureProgress = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ message: "Failed to update lecture progress" });
   }
 };
 
@@ -115,6 +120,7 @@ export const markAsCompleted = async (req, res) => {
     return res.status(200).json({ message: "Course marked as completed." });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ message: "Failed to load course progress" });
   }
 };
 
@@ -135,5 +141,6 @@ export const markAsInCompleted = async (req, res) => {
       return res.status(200).json({ message: "Course marked as incompleted." });
     } catch (error) {
       console.log(error);
+      return res.status(500).json({ message: "Failed to update course progress" });
     }
   };

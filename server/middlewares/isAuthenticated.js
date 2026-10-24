@@ -9,8 +9,8 @@ const isAuthenticated = async (req, res, next) => {
         success: false,
       });
     }
-    const decode = await jwt.verify(token, process.env.SECRET_KEY);
-    if (!decode) {
+    const decode = jwt.verify(token, process.env.SECRET_KEY);
+    if (!decode || !decode.userId) {
       return res.status(401).json({
         message: "Invalid token",
         success: false,
@@ -19,7 +19,12 @@ const isAuthenticated = async (req, res, next) => {
     req.id = decode.userId;
     next();
   } catch (error) {
-    console.log(error);
+    // jwt.verify throws on expired/malformed tokens. Previously this catch
+    // only logged the error and never responded, so the request hung forever.
+    return res.status(401).json({
+      message: "Invalid token",
+      success: false,
+    });
   }
 };
 export default isAuthenticated;

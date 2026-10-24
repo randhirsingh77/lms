@@ -5,6 +5,10 @@ export const generateToken = (res, user, message) => {
     expiresIn: "1d",
   });
 
+  // Never send the password hash back to the client.
+  const safeUser = user.toObject ? user.toObject() : { ...user };
+  delete safeUser.password;
+
   return res
     .status(200)
     .cookie("token", token, {
@@ -15,6 +19,6 @@ export const generateToken = (res, user, message) => {
     }).json({
       success: true,
       message,
-      user
+      user: safeUser
     });
 };
