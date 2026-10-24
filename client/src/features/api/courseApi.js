@@ -4,7 +4,7 @@ const COURSE_API = import.meta.env.VITE_API_URL +"/api/v1/course";
 
 export const courseApi = createApi({
   reducerPath: "courseApi",
-  tagTypes: ["Refetch_Creator_Course", "Refetch_Lecture"],
+  tagTypes: ["Refetch_Creator_Course", "Refetch_Lecture", "Categories"],
   baseQuery: fetchBaseQuery({
     baseUrl: COURSE_API,
     credentials: "include",
@@ -18,10 +18,31 @@ export const courseApi = createApi({
       }),
       invalidatesTags: ["Refetch_Creator_Course"],
     }),
+    getCategories: builder.query({
+      query: () => ({
+        url: "/categories",
+        method: "GET",
+      }),
+      providesTags: ["Categories"],
+    }),
+    createCategory: builder.mutation({
+      query: (name) => ({
+        url: "/category",
+        method: "POST",
+        body: { name },
+      }),
+      invalidatesTags: ["Categories"],
+    }),
     getSearchCourse:builder.query({
       query: ({searchQuery, categories, sortByPrice}) => {
+        // searchQuery comes from useSearchParams().get("query"), which is
+        // null when the page is opened without ?query= — and
+        // encodeURIComponent(null) is the literal string "null", so the
+        // server searched course titles for the word "null" and every
+        // category selection looked broken. Normalise to "" first.
+        const safeQuery = searchQuery ?? "";
         // Build qiery string
-        let queryString = `/search?query=${encodeURIComponent(searchQuery)}`
+        let queryString = `/search?query=${encodeURIComponent(safeQuery)}`
 
         // append cateogry 
         if(categories && categories.length > 0) {
@@ -73,6 +94,7 @@ export const courseApi = createApi({
         method: "POST",
         body: { lectureTitle },
       }),
+      invalidatesTags: ["Refetch_Lecture"],
     }),
     getCourseLecture: builder.query({
       query: (courseId) => ({
@@ -93,6 +115,7 @@ export const courseApi = createApi({
         method: "POST",
         body: { lectureTitle, videoInfo, isPreviewFree },
       }),
+      invalidatesTags: ["Refetch_Lecture"],
     }),
     removeLecture: builder.mutation({
       query: (lectureId) => ({
@@ -117,6 +140,8 @@ export const courseApi = createApi({
 });
 export const {
   useCreateCourseMutation,
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
   useGetSearchCourseQuery,
   useGetPublishedCourseQuery,
   useGetCreatorCourseQuery,

@@ -118,3 +118,44 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Jodit rich-text editor (course description): pin the editor chrome to
+   the app's design tokens in BOTH themes. Jodit's own dark theme does
+   most of this; these rules are the guarantee — the editing surface and
+   the typed text always pair card-background with card-foreground, so
+   dark mode can never regress to light text on a white box (or the
+   reverse). Plain textareas/inputs outside shadcn already inherit the
+   same tokens from the base layer. */
+.jodit-container {
+  background-color: var(--card) !important;
+  border-color: var(--input) !important;
+  color: var(--card-foreground);
+}
+.jodit-workplace,
+.jodit-wysiwyg {
+  background-color: var(--card) !important;
+  color: var(--card-foreground) !important;
+}
+.jodit-wysiwyg p,
+.jodit-wysiwyg li,
+.jodit-wysiwyg td {
+  color: var(--card-foreground);
+}
+.jodit-toolbar__box,
+.jodit-status-bar {
+  background-color: var(--muted) !important;
+  border-color: var(--input) !important;
+  color: var(--foreground);
+}
+.jodit-toolbar-button__button,
+.jodit-toolbar-button__trigger,
+.jodit-status-bar__item {
+  color: var(--foreground) !important;
+}
+.jodit-toolbar-button svg {
+  fill: var(--foreground);
+}
+.dark .jodit-wysiwyg [data-placeholder],
+.jodit-wysiwyg_iframe {
+  background-color: var(--card);
+}

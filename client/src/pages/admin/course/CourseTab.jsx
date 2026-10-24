@@ -29,7 +29,7 @@ import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { CATEGORIES } from "./categories";
+import CategorySelect from "./CategorySelect";
 
 const LEVELS = ["Beginner", "Medium", "Advance"];
 
@@ -225,21 +225,11 @@ const CourseTab = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="ct-category">Category</Label>
-              <Select value={input.category || undefined} onValueChange={selectCategory}>
-                <SelectTrigger id="ct-category" className="h-11 w-full">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Category</SelectLabel>
-                    {CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <CategorySelect
+                id="ct-category"
+                value={input.category}
+                onChange={selectCategory}
+              />
             </div>
 
             <div className="space-y-2">

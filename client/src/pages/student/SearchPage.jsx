@@ -10,7 +10,10 @@ import SearchResult from "./SearchResult";
 
 const SearchPage = () => {
   const [searchParams] = useSearchParams();
-  const query = searchParams.get("query");
+  // null when the page is opened without ?query= (direct link, bookmark,
+  // refresh) — the API layer normalises it too, but the header copy below
+  // also depends on "" meaning "just browsing".
+  const query = searchParams.get("query") ?? "";
   const [selectedCategories, setSelectedCatgories] = useState([]);
   const [sortByPrice, setSortByPrice] = useState("");
 

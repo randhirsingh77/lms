@@ -11,13 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CATEGORIES } from "@/pages/admin/course/categories";
+import { useCategoryList } from "@/pages/admin/course/categories";
 import React, { useState } from "react";
 
-// Search filters in one card: sort-by-price select + the canonical
-// category list (the same values AddCourse stores, imported — the list
-// used to be a second hand-copied array here that could drift).
+// Search filters in one card: sort-by-price select + the category list
+// from the API (built-ins + instructor-created, built-in fallback) — the
+// same source the course forms save from, so a filter option always
+// matches the values courses are stored with.
 const Filter = ({ handleFilterChange }) => {
+  const categories = useCategoryList();
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [sortByPrice, setSortByPrice] = useState("");
 
@@ -67,7 +69,7 @@ const Filter = ({ handleFilterChange }) => {
           Category
         </h3>
         <div className="space-y-0.5">
-          {CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <div
               key={category.value}
               className="flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"

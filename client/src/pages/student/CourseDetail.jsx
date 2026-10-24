@@ -1,4 +1,5 @@
 import BuyCourseButton from "@/components/BuyCourseButton";
+import SocialIconLinks from "@/components/SocialIconLinks";
 import { EmptyState, PageShell } from "@/components/SiteUI";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,10 +92,25 @@ const CourseDetail = () => {
           </p>
           <p className="text-sm">
             Created by{" "}
-            <span className="font-medium underline underline-offset-4">
-              {course?.creator?.name}
-            </span>
+            {course?.creator?._id ? (
+              <Link
+                to={`/instructor/${course.creator._id}`}
+                className="font-medium underline underline-offset-4 hover:text-primary-foreground"
+              >
+                {course?.creator?.name}
+              </Link>
+            ) : (
+              <span className="font-medium underline underline-offset-4">
+                {course?.creator?.name}
+              </span>
+            )}
           </p>
+          {/* Public social links only (the API payload is already
+              privacy-filtered) — icon buttons, never raw URLs. */}
+          <SocialIconLinks
+            socialLinks={course?.creator?.socialLinks}
+            linkClassName="border-primary-foreground/30 bg-transparent text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground"
+          />
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-sm text-primary-foreground/85">
             <span className="inline-flex items-center gap-1.5">
               <BadgeInfo size={16} />

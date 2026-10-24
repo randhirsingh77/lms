@@ -3,6 +3,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ChangePassword from "./pages/ChangePassword";
+import InstructorProfile from "./pages/student/InstructorProfile";
 import NotFound from "./pages/NotFound";
 import HeroSection from "./pages/student/HeroSection";
 import MainLayout from "./layout/MainLayout";
@@ -82,6 +84,20 @@ const appRouter = createBrowserRouter([
             <Profile />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "change-password",
+        element: (
+          <ProtectedRoute>
+            <ChangePassword />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        // Public instructor page — no login required; the API payload is
+        // privacy-filtered on the server.
+        path: "instructor/:instructorId",
+        element: <InstructorProfile />,
       },
       {
         path: "course/search",

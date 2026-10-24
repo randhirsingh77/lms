@@ -2,22 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useCreateCourseMutation } from "@/features/api/courseApi";
 import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "../AdminUI";
-import { CATEGORIES } from "./categories";
+import CategorySelect from "./CategorySelect";
 
 const AddCourse = () => {
   const [courseTitle, setCourseTitle] = useState("");
@@ -65,21 +56,11 @@ const AddCourse = () => {
 
           <div className="space-y-2">
             <Label htmlFor="course-category">Category</Label>
-            <Select value={category || undefined} onValueChange={setCategory}>
-              <SelectTrigger id="course-category" className="h-11 w-full">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Category</SelectLabel>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <CategorySelect
+              id="course-category"
+              value={category}
+              onChange={setCategory}
+            />
             <p className="text-xs text-muted-foreground">
               The category is how students filter courses in search, so pick the closest match.
             </p>

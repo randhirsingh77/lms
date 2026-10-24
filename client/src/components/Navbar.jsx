@@ -1,5 +1,5 @@
 import { GraduationCap, Menu } from "lucide-react";
-import React, { useEffect } from "react";
+import React from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,18 +51,21 @@ const navLinkClass = ({ isActive }) =>
 
 const Navbar = () => {
   const { user } = useSelector((store) => store.auth);
-  const [logoutUser, { data, isSuccess }] = useLogoutUserMutation();
+  const [logoutUser] = useLogoutUserMutation();
   const navigate = useNavigate();
+  // React to the mutation result HERE, not via an isSuccess effect: the
+  // logout lifecycle now resets the whole authApi state (cache isolation
+  // between accounts), which would wipe the mutation's success flag
+  // before an effect could ever observe it.
   const logoutHandler = async () => {
-    await logoutUser();
-  };
-
-  useEffect(() => {
-    if (isSuccess) {
+    try {
+      const data = await logoutUser().unwrap();
       toast.success(data?.message || "User log out.");
-      navigate("/login");
+    } catch {
+      // The local session and caches are cleared regardless; still leave.
     }
-  }, [isSuccess]);
+    navigate("/login");
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
