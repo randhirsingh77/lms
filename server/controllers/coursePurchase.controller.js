@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import mongoose from "mongoose";
 import { Course } from "../models/course.model.js";
 import { CoursePurchase } from "../models/coursePurchase.model.js";
 import { Lecture } from "../models/lecture.model.js";
@@ -21,10 +22,19 @@ export const createCheckoutSession = async (req, res) => {
       return res.status(503).json({ success: false, message: "Payments are not configured on this server." });
     }
     const userId = req.id;
-    const { courseId } = req.body;
+    const { courseId } = req.body || {};
+    if (typeof courseId !== "string" || !mongoose.Types.ObjectId.isValid(courseId)) {
+      return res.status(400).json({ success: false, message: "Invalid courseId" });
+    }
 
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found!" });
+    // The price ALWAYS comes from the database course — the client sends
+    // only the course id, never an amount. A course with no sane price
+    // cannot be sold (previously this produced a NaN amount at Stripe).
+    if (typeof course.coursePrice !== "number" || !(course.coursePrice > 0)) {
+      return res.status(400).json({ success: false, message: "Course is not available for purchase." });
+    }
 
     // Create a new course purchase record
     const newPurchase = new CoursePurchase({
@@ -80,7 +90,7 @@ export const createCheckoutSession = async (req, res) => {
       url: session.url, // Return the Stripe checkout URL
     });
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     // This catch used to only log, so a Stripe failure left the request
     // hanging until the browser gave up.
     return res.status(500).json({ success: false, message: "Failed to create checkout session" });
@@ -114,8 +124,6 @@ export const stripeWebhook = async (req, res) => {
 
   // Handle the checkout session completed event
   if (event.type === "checkout.session.completed") {
-    console.log("check session complete is called");
-
     try {
       const session = event.data.object;
 
@@ -168,7 +176,10 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
     const userId = req.id;
 
     const course = await Course.findById(courseId)
-      .populate({ path: "creator" })
+      // Field allow-list: populating the creator WITHOUT a select embedded
+      // the instructor's full user document — password hash included — in
+      // this public-to-students response.
+      .populate({ path: "creator", select: "name photoUrl" })
       .populate({ path: "lectures" });
 
     if (!course) {
@@ -185,15 +196,21 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
       purchased: !!purchased, // true if purchased, false otherwise
     });
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     return res.status(500).json({ message: "Failed to get course details" });
   }
 };
 
-export const getAllPurchasedCourse = async (_, res) => {
+export const getAllPurchasedCourse = async (req, res) => {
   try {
+    // Scope the feed to the CALLER's own courses. It used to return every
+    // completed sale on the whole platform to any instructor — leaking
+    // other instructors' revenue and sales counts into their dashboard
+    // (and making a fresh instructor's "no sales yet" state unreachable).
+    const ownCourses = await Course.find({ creator: req.id }).select("_id");
     const purchasedCourse = await CoursePurchase.find({
       status: "completed",
+      courseId: { $in: ownCourses.map((c) => c._id) },
     }).populate("courseId");
     if (!purchasedCourse) {
       return res.status(404).json({
@@ -204,7 +221,7 @@ export const getAllPurchasedCourse = async (_, res) => {
       purchasedCourse,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     return res.status(500).json({ message: "Failed to get purchased courses" });
   }
 };

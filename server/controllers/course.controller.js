@@ -1,12 +1,14 @@
  
+import fs from "node:fs";
 import { Course } from "../models/course.model.js";
 import { Lecture } from "../models/lecture.model.js";
 import {deleteMediaFromCloudinary, deleteVideoFromCloudinary, uploadMedia} from "../utils/cloudinary.js";
 
 export const createCourse = async (req,res) => {
     try {
-        const {courseTitle, category} = req.body;
-        if(!courseTitle || !category) {
+        const {courseTitle, category} = req.body || {};
+        if(typeof courseTitle !== "string" || !courseTitle.trim() || courseTitle.length > 200 ||
+           typeof category !== "string" || !category.trim() || category.length > 100) {
             return res.status(400).json({
                 message:"Course title and category is required."
             })
@@ -23,7 +25,7 @@ export const createCourse = async (req,res) => {
             message:"Course created."
         })
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to create course"
         })
@@ -52,7 +54,9 @@ const assertCourseOwner = (course, req, res) => {
 export const searchCourse = async (req,res) => {
     try {
         const {query = "", categories, sortByPrice =""} = req.query;
-        const safeQuery = escapeRegExp(query);
+        // Cap the search text: the regex runs over three fields on every
+        // published course, so an unbounded query is a cheap DoS handle.
+        const safeQuery = escapeRegExp(String(query).slice(0, 200));
 
         // create search query
         const searchCriteria = {
@@ -101,7 +105,7 @@ export const searchCourse = async (req,res) => {
         });
 
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             success:false,
             message:"Failed to search courses"
@@ -121,7 +125,7 @@ export const getPublishedCourse = async (_,res) => {
             courses,
         })
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to get published courses"
         })
@@ -141,7 +145,7 @@ export const getCreatorCourses = async (req,res) => {
             courses,
         })
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to get creator courses"
         })
@@ -163,6 +167,7 @@ export const editCourse = async (req,res) => {
             }
             // upload a thumbnail on clourdinary
             courseThumbnail = await uploadMedia(thumbnail.path);
+            fs.unlink(thumbnail.path, () => {}); // temp copy no longer needed
             if(!courseThumbnail?.secure_url){
                 return res.status(500).json({
                     message:"Failed to upload course thumbnail"
@@ -179,17 +184,21 @@ export const editCourse = async (req,res) => {
         const textFields = {courseTitle, subTitle, description, category, courseLevel};
         for (const [key, value] of Object.entries(textFields)) {
             const v = clean(value);
-            if (v !== undefined) updateData[key] = v;
+            // Only strings may be stored in string fields (an object here
+            // is a mass-assignment / cast attack, not a real form value).
+            if (v !== undefined && typeof v === "string") updateData[key] = v;
         }
         const price = clean(coursePrice);
-        if (price !== undefined && !Number.isNaN(Number(price))) {
+        if (price !== undefined && !Number.isNaN(Number(price)) && Number(price) >= 0) {
             updateData.coursePrice = Number(price);
         }
         if (courseThumbnail?.secure_url) {
             updateData.courseThumbnail = courseThumbnail.secure_url;
         }
 
-        course = await Course.findByIdAndUpdate(courseId, updateData, {new:true});
+        // runValidators: updates bypass schema validators by default, so
+        // the courseLevel enum (and any future rule) was not enforced here.
+        course = await Course.findByIdAndUpdate(courseId, updateData, {new:true, runValidators:true});
 
         return res.status(200).json({
             course,
@@ -197,7 +206,7 @@ export const editCourse = async (req,res) => {
         })
 
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to update course"
         })
@@ -218,7 +227,7 @@ export const getCourseById = async (req,res) => {
             course
         })
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to get course by id"
         })
@@ -227,10 +236,10 @@ export const getCourseById = async (req,res) => {
 
 export const createLecture = async (req,res) => {
     try {
-        const {lectureTitle} = req.body;
+        const {lectureTitle} = req.body || {};
         const {courseId} = req.params;
 
-        if(!lectureTitle || !courseId){
+        if(typeof lectureTitle !== "string" || !lectureTitle.trim() || lectureTitle.length > 200 || !courseId){
             return res.status(400).json({
                 message:"Lecture title is required"
             })
@@ -252,7 +261,7 @@ export const createLecture = async (req,res) => {
         });
 
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to create lecture"
         })
@@ -272,7 +281,7 @@ export const getCourseLecture = async (req,res) => {
         });
 
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to get lectures"
         })
@@ -295,10 +304,10 @@ export const editLecture = async (req,res) => {
         const course = await Course.findById(courseId);
         if(!assertCourseOwner(course, req, res)) return;
 
-        // update lecture
-        if(lectureTitle) lecture.lectureTitle = lectureTitle;
-        if(videoInfo?.videoUrl) lecture.videoUrl = videoInfo.videoUrl;
-        if(videoInfo?.publicId) lecture.publicId = videoInfo.publicId;
+        // update lecture (string fields accept strings only)
+        if(typeof lectureTitle === "string" && lectureTitle.trim()) lecture.lectureTitle = lectureTitle;
+        if(typeof videoInfo?.videoUrl === "string") lecture.videoUrl = videoInfo.videoUrl;
+        if(typeof videoInfo?.publicId === "string") lecture.publicId = videoInfo.publicId;
         if(typeof isPreviewFree === "boolean") lecture.isPreviewFree = isPreviewFree;
 
         await lecture.save();
@@ -313,7 +322,7 @@ export const editLecture = async (req,res) => {
             message:"Lecture updated successfully."
         })
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to edit lectures"
         })
@@ -347,7 +356,7 @@ export const removeLecture = async (req,res) => {
             message:"Lecture removed successfully."
         })
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to remove lecture"
         })
@@ -366,7 +375,7 @@ export const getLectureById = async (req,res) => {
             lecture
         });
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to get lecture by id"
         })
@@ -391,7 +400,7 @@ export const togglePublishCourse = async (req,res) => {
             message:`Course is ${statusMessage}`
         });
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         return res.status(500).json({
             message:"Failed to update status"
         })

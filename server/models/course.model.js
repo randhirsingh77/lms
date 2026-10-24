@@ -44,4 +44,8 @@ const courseSchema = new mongoose.Schema({
 
 }, {timestamps:true});
 
+// The public catalogue + creator dashboard queries filter on these.
+courseSchema.index({ isPublished: 1 });
+courseSchema.index({ creator: 1 });
+
 export const Course = mongoose.model("Course", courseSchema);

@@ -40,7 +40,7 @@ export const getCourseProgress = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     return res.status(500).json({ message: "Failed to load course progress" });
   }
 };
@@ -98,7 +98,7 @@ export const updateLectureProgress = async (req, res) => {
       message: "Lecture progress updated successfully.",
     });
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     return res.status(500).json({ message: "Failed to update lecture progress" });
   }
 };
@@ -119,7 +119,7 @@ export const markAsCompleted = async (req, res) => {
     await courseProgress.save();
     return res.status(200).json({ message: "Course marked as completed." });
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     return res.status(500).json({ message: "Failed to load course progress" });
   }
 };
@@ -140,7 +140,7 @@ export const markAsInCompleted = async (req, res) => {
       await courseProgress.save();
       return res.status(200).json({ message: "Course marked as incompleted." });
     } catch (error) {
-      console.log(error);
+      console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
       return res.status(500).json({ message: "Failed to update course progress" });
     }
   };

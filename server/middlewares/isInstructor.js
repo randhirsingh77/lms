@@ -13,7 +13,7 @@ const isInstructor = async (req, res, next) => {
     }
     next();
   } catch (error) {
-    console.log(error);
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
     return res.status(500).json({
       success: false,
       message: "Failed to verify role",

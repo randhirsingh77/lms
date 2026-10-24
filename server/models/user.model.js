@@ -3,11 +3,20 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     name:{
         type:String,
-        required:true
+        required:true,
+        trim:true,
+        maxlength:100
     },
     email:{
         type:String,
-        required:true
+        required:true,
+        // Actually enforce one account per email in the DATABASE (the old
+        // schema had no uniqueness at all — register's manual check was
+        // case-sensitive and racy, so "User@x.io" and "user@x.io" could
+        // both register). Stored lowercase so login matches either way.
+        unique:true,
+        lowercase:true,
+        trim:true
     },
     password:{
         type:String,

@@ -1,5 +1,6 @@
 import express from "express";
-import upload from "../utils/multer.js";
+import fs from "node:fs";
+import { uploadVideo } from "../utils/multer.js";
 import { uploadMedia } from "../utils/cloudinary.js";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
 
@@ -8,7 +9,8 @@ const router = express.Router();
 // Auth required: this endpoint spends the owner's Cloudinary quota, and it
 // used to be open to the whole internet. It also crashed with a 500 when
 // the request had no file, because req.file.path was read unconditionally.
-router.route("/upload-video").post(isAuthenticated, upload.single("file"), async(req,res) => {
+// The uploader itself now enforces video type + a 200 MB cap.
+router.route("/upload-video").post(isAuthenticated, uploadVideo.single("file"), async(req,res) => {
     try {
         if (!req.file) {
             return res.status(400).json({
@@ -23,8 +25,12 @@ router.route("/upload-video").post(isAuthenticated, upload.single("file"), async
             data:result
         });
     } catch (error) {
-        console.log(error);
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
         res.status(500).json({message:"Error uploading file"})
+    } finally {
+        // Remove the local temp copy either way — it used to accumulate on
+        // disk forever, one file per upload.
+        if (req.file) fs.unlink(req.file.path, () => {});
     }
 });
 export default router;
