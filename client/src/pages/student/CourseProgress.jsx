@@ -29,15 +29,13 @@ const CourseProgress = () => {
   ] = useInCompleteCourseMutation();
 
   useEffect(() => {
-    console.log(markCompleteData);
-
     if (completedSuccess) {
       refetch();
-      toast.success(markCompleteData.message);
+      toast.success(markCompleteData?.message);
     }
     if (inCompletedSuccess) {
       refetch();
-      toast.success(markInCompleteData.message);
+      toast.success(markInCompleteData?.message);
     }
   }, [completedSuccess, inCompletedSuccess]);
 
@@ -46,10 +44,21 @@ const CourseProgress = () => {
   if (isLoading) return <p>Loading...</p>;
   if (isError) return <p>Failed to load course details</p>;
 
-  console.log(data);
-
   const { courseDetails, progress, completed } = data.data;
   const { courseTitle } = courseDetails;
+
+  // A course can have zero lectures — the code below used to dereference
+  // lectures[0] unconditionally and crash the whole page.
+  if (!courseDetails.lectures || courseDetails.lectures.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto p-4">
+        <h1 className="text-2xl font-bold">{courseTitle}</h1>
+        <p className="mt-4 text-gray-600 dark:text-gray-300">
+          This course has no lectures yet. Please check back later.
+        </p>
+      </div>
+    );
+  }
 
   // initialze the first lecture is not exist
   const initialLecture =
@@ -101,7 +110,7 @@ const CourseProgress = () => {
         <div className="flex-1 md:w-3/5 h-fit rounded-lg shadow-lg p-4">
           <div>
             <video
-              src={currentLecture?.videoUrl || initialLecture.videoUrl}
+              src={currentLecture?.videoUrl || initialLecture?.videoUrl}
               controls
               className="w-full h-auto md:rounded-lg"
               onPlay={() =>

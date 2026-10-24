@@ -46,7 +46,12 @@ const Profile = () => {
   const updateUserHandler = async () => {
     const formData = new FormData();
     formData.append("name", name);
-    formData.append("profilePhoto", profilePhoto);
+    // Only append the photo when a file was actually picked. Appending the
+    // initial "" sent a text field instead of a file, and the server then
+    // crashed trying to upload it — name-only edits always failed.
+    if (profilePhoto instanceof File) {
+      formData.append("profilePhoto", profilePhoto);
+    }
     await updateUser(formData);
   };
 
@@ -54,13 +59,20 @@ const Profile = () => {
     refetch();
   }, []);
 
+  // Pre-fill the edit form with the current name instead of an empty box.
+  useEffect(() => {
+    if (data?.user?.name) {
+      setName(data.user.name);
+    }
+  }, [data?.user?._id]);
+
   useEffect(() => {
     if (isSuccess) {
       refetch();
-      toast.success(data.message || "Profile updated.");
+      toast.success(updateUserData?.message || "Profile updated.");
     }
     if (isError) {
-      toast.error(error.message || "Failed to update profile");
+      toast.error(error?.data?.message || "Failed to update profile");
     }
   }, [error, updateUserData, isSuccess, isError]);
 

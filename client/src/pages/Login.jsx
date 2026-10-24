@@ -1,4 +1,3 @@
-// McgPr7oX7v1mMcbN
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +9,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useLoginUserMutation,
@@ -25,6 +31,7 @@ const Login = () => {
     name: "",
     email: "",
     password: "",
+    role: "student",
   });
   const [loginInput, setLoginInput] = useState({ email: "", password: "" });
 
@@ -68,14 +75,16 @@ const Login = () => {
       toast.success(registerData.message || "Signup successful.")
     }
     if(registerError){
-      toast.error(registerError.data.message || "Signup Failed");
+      // error.data is undefined on network failures — the old code crashed
+      // here instead of showing the toast.
+      toast.error(registerError?.data?.message || "Signup Failed");
     }
     if(loginIsSuccess && loginData){
       toast.success(loginData.message || "Login successful.");
       navigate("/");
     }
-    if(loginError){ 
-      toast.error(loginError.data.message || "login Failed");
+    if(loginError){
+      toast.error(loginError?.data?.message || "login Failed");
     }
   }, [
     loginIsLoading,
@@ -110,7 +119,7 @@ const Login = () => {
                   value={signupInput.name}
                   onChange={(e) => changeInputHandler(e, "signup")}
                   placeholder="Eg. randhir"
-                  required="true"
+                  required
                 />
               </div>
               <div className="space-y-1">
@@ -121,7 +130,7 @@ const Login = () => {
                   value={signupInput.email}
                   onChange={(e) => changeInputHandler(e, "signup")}
                   placeholder="Eg. randhir@gmail.com"
-                  required="true"
+                  required
                 />
               </div>
               <div className="space-y-1">
@@ -132,8 +141,25 @@ const Login = () => {
                   value={signupInput.password}
                   onChange={(e) => changeInputHandler(e, "signup")}
                   placeholder="Eg. xyz"
-                  required="true"
+                  required
                 />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="role">I am joining as</Label>
+                <Select
+                  value={signupInput.role}
+                  onValueChange={(value) =>
+                    setSignupInput({ ...signupInput, role: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="instructor">Instructor</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
             <CardFooter>
@@ -170,7 +196,7 @@ const Login = () => {
                   value={loginInput.email}
                   onChange={(e) => changeInputHandler(e, "login")}
                   placeholder="Eg. randhir@gmail.com"
-                  required="true"
+                  required
                 />
               </div>
               <div className="space-y-1">
@@ -181,7 +207,7 @@ const Login = () => {
                   value={loginInput.password}
                   onChange={(e) => changeInputHandler(e, "login")}
                   placeholder="Eg. xyz"
-                  required="true"
+                  required
                 />
               </div>
             </CardContent>

@@ -31,14 +31,16 @@ const Filter = ({ handleFilterChange }) => {
   const [sortByPrice, setSortByPrice] = useState("");
 
   const handleCategoryChange = (categoryId) => {
-    setSelectedCategories((prevCategories) => {
-      const newCategories = prevCategories.includes(categoryId)
-        ? prevCategories.filter((id) => id !== categoryId)
-        : [...prevCategories, categoryId];
-
-        handleFilterChange(newCategories, sortByPrice);
-        return newCategories;
-    });
+    // Compute the next list first, then update both states as plain event
+    // handlers. The old code called the parent's setState (via
+    // handleFilterChange) from INSIDE this component's state updater —
+    // updaters must be pure; React warned "Cannot update a component while
+    // rendering a different component" and could double-fire the callback.
+    const newCategories = selectedCategories.includes(categoryId)
+      ? selectedCategories.filter((id) => id !== categoryId)
+      : [...selectedCategories, categoryId];
+    setSelectedCategories(newCategories);
+    handleFilterChange(newCategories, sortByPrice);
   };
 
   const selectByPriceHandler = (selectedValue) => {
@@ -66,12 +68,12 @@ const Filter = ({ handleFilterChange }) => {
       <div>
         <h1 className="font-semibold mb-2">CATEGORY</h1>
         {categories.map((category) => (
-          <div className="flex items-center space-x-2 my-2">
+          <div key={category.id} className="flex items-center space-x-2 my-2">
             <Checkbox
               id={category.id}
               onCheckedChange={() => handleCategoryChange(category.id)}
             />
-            <Label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            <Label htmlFor={category.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
               {category.label}
             </Label>
           </div>

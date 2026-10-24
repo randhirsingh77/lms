@@ -37,12 +37,10 @@ export const authApi = createApi({
                 url:"logout",
                 method:"GET"
             }),
-            async onQueryStarted(_, {queryFulfilled, dispatch}) {
-                try { 
-                    dispatch(userLoggedOut());
-                } catch (error) {
-                    console.log(error);
-                }
+            async onQueryStarted(_, {dispatch}) {
+                // Clear the local session immediately; the server call
+                // clears the cookie.
+                dispatch(userLoggedOut());
             }
         }),
         loadUser: builder.query({
