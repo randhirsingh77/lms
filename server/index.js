@@ -95,6 +95,48 @@ app.use("/api/v1", apiLimiter);
 app.use("/api/v1/user/login", authLimiter);
 app.use("/api/v1/user/register", authLimiter);
 
+// Password recovery/change get their own tight hourly budgets so the flow
+// can't be spammed: a handful of honest mistakes is fine, fun-and-games is
+// not. forgot-password is additionally keyed per email+IP, so one mailbox
+// can't be mail-bombed from a crowd of addresses either.
+const tooMany = (what) => ({
+  success: false,
+  message: `Too many ${what} requests. Please try again later.`,
+});
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: tooMany("password reset"),
+});
+const forgotPerEmailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    `email:${String(req.body?.email || "").toLowerCase().trim()}`,
+  message: tooMany("password reset"),
+});
+const resetPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: tooMany("password reset"),
+});
+const changePasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: tooMany("password change"),
+});
+app.use("/api/v1/user/forgot-password", forgotPasswordLimiter, forgotPerEmailLimiter);
+app.use("/api/v1/user/reset-password", resetPasswordLimiter);
+app.use("/api/v1/user/change-password", changePasswordLimiter);
+
 // Cheap liveness probe for the host — no DB access, no internals leaked.
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });

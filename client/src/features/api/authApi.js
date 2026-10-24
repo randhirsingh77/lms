@@ -15,7 +15,18 @@ export const authApi = createApi({
                 url:"register",
                 method:"POST",
                 body:inputData
-            })
+            }),
+            // The server sets the session cookie on register too, so a
+            // signup is immediately a logged-in session — mirror login's
+            // state update or the route guards would bounce the new user.
+            async onQueryStarted(_, {queryFulfilled, dispatch}) {
+                try {
+                    const result = await queryFulfilled;
+                    dispatch(userLoggedIn({user:result.data.user}));
+                } catch {
+                    // failed signup; the UI surfaces the server message.
+                }
+            }
         }),
         loginUser: builder.mutation({
             query: (inputData) => ({
@@ -66,6 +77,27 @@ export const authApi = createApi({
                 body:formData,
                 credentials:"include"
             })
+        }),
+        forgotPassword: builder.mutation({
+            query: (inputData) => ({
+                url:"forgot-password",
+                method:"POST",
+                body:inputData
+            })
+        }),
+        resetPassword: builder.mutation({
+            query: (inputData) => ({
+                url:"reset-password",
+                method:"POST",
+                body:inputData
+            })
+        }),
+        changePassword: builder.mutation({
+            query: (inputData) => ({
+                url:"change-password",
+                method:"POST",
+                body:inputData
+            })
         })
     })
 });
@@ -74,5 +106,8 @@ export const {
     useLoginUserMutation,
     useLogoutUserMutation,
     useLoadUserQuery,
-    useUpdateUserMutation
+    useUpdateUserMutation,
+    useForgotPasswordMutation,
+    useResetPasswordMutation,
+    useChangePasswordMutation
 } = authApi;

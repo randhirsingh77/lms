@@ -9,227 +9,110 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  useLoginUserMutation,
-  useRegisterUserMutation,
-} from "@/features/api/authApi";
+import { useLoginUserMutation } from "@/features/api/authApi";
+import { landingPathFor } from "@/lib/landing";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import AuthLayout from "./auth/AuthLayout";
 
+// Login ONLY — signup lives on its own screen (/signup). The submit
+// handler awaits the mutation and reacts to THAT result directly; the
+// old shared useEffect over both mutations' state is what re-fired the
+// stale "Account created successfully." toast when logging in after a
+// signup.
 const Login = () => {
-  const [signupInput, setSignupInput] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "student",
-  });
-  const [loginInput, setLoginInput] = useState({ email: "", password: "" });
-
-  const [
-    registerUser,
-    {
-      data: registerData,
-      error: registerError,
-      isLoading: registerIsLoading,
-      isSuccess: registerIsSuccess,
-    },
-  ] = useRegisterUserMutation();
-  const [
-    loginUser,
-    {
-      data: loginData,
-      error: loginError,
-      isLoading: loginIsLoading,
-      isSuccess: loginIsSuccess,
-    },
-  ] = useLoginUserMutation();
+  const [input, setInput] = useState({ email: "", password: "" });
+  const [loginUser, { isLoading }] = useLoginUserMutation();
   const navigate = useNavigate();
 
-  const changeInputHandler = (e, type) => {
+  const changeHandler = (e) => {
     const { name, value } = e.target;
-    if (type === "signup") {
-      setSignupInput({ ...signupInput, [name]: value });
-    } else {
-      setLoginInput({ ...loginInput, [name]: value });
-    }
+    setInput({ ...input, [name]: value });
   };
 
-  const handleRegistration = async (type) => {
-    const inputData = type === "signup" ? signupInput : loginInput;
-    const action = type === "signup" ? registerUser : loginUser;
-    await action(inputData);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const data = await loginUser(input).unwrap();
+      toast.success(`Welcome back, ${data.user.name}`);
+      navigate(landingPathFor(data.user), { replace: true });
+    } catch (err) {
+      toast.error(err?.data?.message || "Login failed. Please try again.");
+    }
   };
-
-  useEffect(() => {
-    if(registerIsSuccess && registerData){
-      toast.success(registerData.message || "Signup successful.")
-    }
-    if(registerError){
-      // error.data is undefined on network failures — the old code crashed
-      // here instead of showing the toast.
-      toast.error(registerError?.data?.message || "Signup Failed");
-    }
-    if(loginIsSuccess && loginData){
-      toast.success(loginData.message || "Login successful.");
-      navigate("/");
-    }
-    if(loginError){
-      toast.error(loginError?.data?.message || "login Failed");
-    }
-  }, [
-    loginIsLoading,
-    registerIsLoading,
-    loginData,
-    registerData,
-    loginError,
-    registerError,
-  ]);
 
   return (
-    <div className="flex items-center w-full justify-center mt-20">
-      <Tabs defaultValue="login" className="w-[400px]">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="signup">Signup</TabsTrigger>
-          <TabsTrigger value="login">Login</TabsTrigger>
-        </TabsList>
-        <TabsContent value="signup">
-          <Card>
-            <CardHeader>
-              <CardTitle>Signup</CardTitle>
-              <CardDescription>
-                Create a new account and click signup when you're done.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="space-y-1">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  type="text"
-                  name="name"
-                  value={signupInput.name}
-                  onChange={(e) => changeInputHandler(e, "signup")}
-                  placeholder="Eg. randhir"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="username">Email</Label>
-                <Input
-                  type="email"
-                  name="email"
-                  value={signupInput.email}
-                  onChange={(e) => changeInputHandler(e, "signup")}
-                  placeholder="Eg. randhir@gmail.com"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="username">Password</Label>
-                <Input
-                  type="password"
-                  name="password"
-                  value={signupInput.password}
-                  onChange={(e) => changeInputHandler(e, "signup")}
-                  placeholder="Eg. xyz"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="role">I am joining as</Label>
-                <Select
-                  value={signupInput.role}
-                  onValueChange={(value) =>
-                    setSignupInput({ ...signupInput, role: value })
-                  }
+    <AuthLayout>
+      <Card className="shadow-sm">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl">Welcome back</CardTitle>
+          <CardDescription>
+            Log in to continue learning — or teaching.
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleLogin}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                value={input.email}
+                onChange={changeHandler}
+                placeholder="Eg. randhir@gmail.com"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="login-password">Password</Label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="instructor">Instructor</SelectItem>
-                  </SelectContent>
-                </Select>
+                  Forgot password?
+                </Link>
               </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                disabled={registerIsLoading}
-                onClick={() => handleRegistration("signup")}
+              <Input
+                id="login-password"
+                type="password"
+                name="password"
+                autoComplete="current-password"
+                value={input.password}
+                onChange={changeHandler}
+                placeholder="Your password"
+                required
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex-col gap-4 pt-2">
+            <Button type="submit" disabled={isLoading} className="h-11 w-full">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Please wait
+                </>
+              ) : (
+                "Login"
+              )}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              New to E-Learning?{" "}
+              <Link
+                to="/signup"
+                className="font-medium text-foreground underline-offset-4 hover:underline"
               >
-                {registerIsLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Please
-                    wait
-                  </>
-                ) : (
-                  "Signup"
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        <TabsContent value="login">
-          <Card>
-            <CardHeader>
-              <CardTitle>Login</CardTitle>
-              <CardDescription>
-                Login your password here. After signup, you'll be logged in.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="space-y-1">
-                <Label htmlFor="current">Email</Label>
-                <Input
-                  type="email"
-                  name="email"
-                  value={loginInput.email}
-                  onChange={(e) => changeInputHandler(e, "login")}
-                  placeholder="Eg. randhir@gmail.com"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="new">Password</Label>
-                <Input
-                  type="password"
-                  name="password"
-                  value={loginInput.password}
-                  onChange={(e) => changeInputHandler(e, "login")}
-                  placeholder="Eg. xyz"
-                  required
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                disabled={loginIsLoading}
-                onClick={() => handleRegistration("login")}
-              >
-                {loginIsLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Please
-                    wait
-                  </>
-                ) : (
-                  "Login"
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                Create an account
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
+    </AuthLayout>
   );
 };
+
 export default Login;

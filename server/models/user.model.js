@@ -36,6 +36,19 @@ const userSchema = new mongoose.Schema({
     photoUrl:{
         type:String,
         default:""
+    },
+    // Password reset: only the SHA-256 HASH of the emailed token is
+    // stored (never the token itself), with a hard expiry. Cleared on
+    // use, on password change, and on a fresh forgot-password request,
+    // so a link is single-use and short-lived. Both fields are excluded
+    // from every user serialisation (see the selects in the controller).
+    resetPasswordToken:{
+        type:String,
+        default:undefined
+    },
+    resetPasswordExpire:{
+        type:Date,
+        default:undefined
     }
 },{timestamps:true});
 

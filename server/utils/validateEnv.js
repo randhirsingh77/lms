@@ -11,6 +11,9 @@ const OPTIONAL_FEATURES = [
   ["API_KEY", "media uploads (Cloudinary)"],
   ["API_SECRET", "media uploads (Cloudinary)"],
   ["FRONTEND_URL", "payment redirect URLs"],
+  ["SMTP_HOST", "password-reset emails (SMTP)"],
+  ["SMTP_USER", "password-reset emails (SMTP)"],
+  ["SMTP_PASS", "password-reset emails (SMTP)"],
 ];
 
 export function validateEnv() {

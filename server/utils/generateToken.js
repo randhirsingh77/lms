@@ -12,17 +12,20 @@ export const sessionCookieOptions = {
   sameSite: isProd ? "none" : "lax",
 };
 
-export const generateToken = (res, user, message) => {
+export const generateToken = (res, user, message, status = 200) => {
   const token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, {
     expiresIn: "1d",
   });
 
-  // Never send the password hash back to the client.
+  // Never send the password hash — or the password-reset internals —
+  // back to the client.
   const safeUser = user.toObject ? user.toObject() : { ...user };
   delete safeUser.password;
+  delete safeUser.resetPasswordToken;
+  delete safeUser.resetPasswordExpire;
 
   return res
-    .status(200)
+    .status(status)
     .cookie("token", token, {
       ...sessionCookieOptions,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
