@@ -61,7 +61,7 @@ const CourseProgress = () => {
 
   if (isLoading) {
     return (
-      <PageShell className="space-y-6 py-8">
+      <PageShell className="space-y-6 py-10">
         <Skeleton className="h-9 w-1/2" />
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           <Skeleton className="aspect-video w-full" />
@@ -72,7 +72,7 @@ const CourseProgress = () => {
   }
   if (isError || !data?.data) {
     return (
-      <PageShell className="py-14">
+      <PageShell className="py-10">
         <EmptyState
           title="Failed to load course details"
           description="Your progress couldn't be loaded right now. Please try again."
@@ -163,7 +163,7 @@ const CourseProgress = () => {
   };
 
   return (
-    <PageShell className="py-8">
+    <PageShell className="py-10">
       <PageHeader
         title={courseTitle}
         className="mb-6"

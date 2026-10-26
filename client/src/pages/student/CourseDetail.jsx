@@ -23,7 +23,6 @@ import {
   Users,
 } from "lucide-react";
 import React from "react";
-import ReactPlayer from "react-player";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 const CourseDetail = () => {
@@ -42,7 +41,7 @@ const CourseDetail = () => {
             <Skeleton className="h-5 w-1/3 bg-primary-foreground/20" />
           </PageShell>
         </div>
-        <PageShell className="py-8">
+        <PageShell className="py-10">
           <Skeleton className="h-64 w-full" />
         </PageShell>
       </div>
@@ -50,7 +49,7 @@ const CourseDetail = () => {
   }
   if (isError || !data?.course) {
     return (
-      <PageShell className="py-14">
+      <PageShell className="py-10">
         <EmptyState
           title="Failed to load course details"
           description="This course couldn't be loaded. It may have been removed, or something went wrong."
@@ -192,11 +191,14 @@ const CourseDetail = () => {
         <div className="min-w-0">
           <Card className="overflow-hidden py-0 lg:sticky lg:top-24">
             <div className="aspect-video w-full bg-black">
-              <ReactPlayer
-                width="100%"
-                height={"100%"}
-                url={course.lectures?.[0]?.videoUrl}
-                controls={true}
+              {/* Same native <video> pattern as every other player in
+                  the app (this preview was the last ReactPlayer user). */}
+              <video
+                className="h-full w-full"
+                src={course.lectures?.[0]?.videoUrl || undefined}
+                poster={course.courseThumbnail || undefined}
+                controls
+                preload="metadata"
               />
             </div>
             <CardContent className="space-y-3 p-5">

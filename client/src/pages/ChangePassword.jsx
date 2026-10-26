@@ -13,13 +13,14 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import AuthLayout from "./auth/AuthLayout";
+import { PageHeader, PageShell } from "@/components/SiteUI";
 
 // Dedicated change-password screen (linked from Profile as "Reset
 // Password"). Same verified flow as before — current → new → confirm,
 // the server re-checks the current password with bcrypt and the hourly
-// rate limit is unchanged — it just no longer lives as a form embedded
-// in the profile overview.
+// rate limit is unchanged. It renders in the normal site shell like
+// every other signed-in page (it used to sit in the logged-out auth
+// shell, which made a signed-in user look logged out).
 const ChangePassword = () => {
   const [fields, setFields] = useState({
     currentPassword: "",
@@ -62,15 +63,20 @@ const ChangePassword = () => {
   };
 
   return (
-    <AuthLayout>
-      <Card className="border-0 shadow-none sm:border sm:shadow-sm">
-        <CardHeader className="space-y-1.5 px-0 sm:px-6">
-          <CardTitle className="text-2xl">Reset password</CardTitle>
-          <CardDescription>
-            Verify your current password, then choose a new one.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 sm:px-6">
+    <PageShell className="py-10">
+      <div className="mx-auto w-full max-w-xl space-y-6">
+        <PageHeader
+          title="Reset password"
+          description="Verify your current password, then choose a new one."
+        />
+        <Card className="shadow-sm">
+          <CardHeader className="sr-only">
+            <CardTitle>Reset password</CardTitle>
+            <CardDescription>
+              Verify your current password, then choose a new one.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="current-password">Current password</Label>
@@ -132,10 +138,11 @@ const ChangePassword = () => {
                 <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to profile
               </Link>
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </AuthLayout>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </PageShell>
   );
 };
 

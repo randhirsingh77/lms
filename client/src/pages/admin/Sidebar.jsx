@@ -96,7 +96,7 @@ const Sidebar = () => {
       <div className="min-w-0 flex-1">
         {/* App.jsx already provides the page <main>; a second nested one
             is invalid HTML, so the admin content column is a div. */}
-        <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </div>

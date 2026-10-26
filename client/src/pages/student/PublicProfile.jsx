@@ -40,7 +40,7 @@ const PublicProfile = () => {
   const profile = data?.profile;
   if (isError || !profile) {
     return (
-      <PageShell className="py-14">
+      <PageShell className="py-10">
         <EmptyState
           title="Profile not found"
           description="This public profile doesn't exist or hasn't been shared publicly."

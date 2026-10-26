@@ -3,73 +3,90 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Design direction — "academy": warm paper surfaces, deep green ink and
+   a single confident academy-green primary (a chalkboard green, not a
+   generic SaaS blue). Everything else is a warm neutral so the green
+   stays the only voice. Charts echo the same family (green, amber, teal,
+   clay, plum). Body text pairs were contrast-checked ≥ 4.5:1 in both
+   modes when this palette was set. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --radius: 0.75rem;
+  --background: oklch(0.985 0.006 95);
+  --foreground: oklch(0.205 0.018 165);
+  --card: oklch(0.995 0.004 95);
+  --card-foreground: oklch(0.205 0.018 165);
+  --popover: oklch(0.995 0.004 95);
+  --popover-foreground: oklch(0.205 0.018 165);
+  --primary: oklch(0.45 0.105 162);
+  --primary-foreground: oklch(0.985 0.006 95);
+  --secondary: oklch(0.955 0.012 95);
+  --secondary-foreground: oklch(0.27 0.03 165);
+  --muted: oklch(0.955 0.012 95);
+  --muted-foreground: oklch(0.46 0.018 160);
+  --accent: oklch(0.94 0.02 120);
+  --accent-foreground: oklch(0.27 0.03 165);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --border: oklch(0.9 0.012 95);
+  --input: oklch(0.9 0.012 95);
+  --ring: oklch(0.55 0.11 162);
+  --chart-1: oklch(0.55 0.13 162);
+  --chart-2: oklch(0.68 0.15 75);
+  --chart-3: oklch(0.55 0.09 205);
+  --chart-4: oklch(0.58 0.14 35);
+  --chart-5: oklch(0.52 0.1 320);
+  --sidebar: oklch(0.975 0.008 95);
+  --sidebar-foreground: oklch(0.205 0.018 165);
+  --sidebar-primary: oklch(0.45 0.105 162);
+  --sidebar-primary-foreground: oklch(0.985 0.006 95);
+  --sidebar-accent: oklch(0.94 0.02 120);
+  --sidebar-accent-foreground: oklch(0.27 0.03 165);
+  --sidebar-border: oklch(0.9 0.012 95);
+  --sidebar-ring: oklch(0.55 0.11 162);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
+  --background: oklch(0.155 0.012 168);
+  --foreground: oklch(0.955 0.008 95);
+  --card: oklch(0.2 0.014 168);
+  --card-foreground: oklch(0.955 0.008 95);
+  --popover: oklch(0.2 0.014 168);
+  --popover-foreground: oklch(0.955 0.008 95);
+  --primary: oklch(0.74 0.115 162);
+  --primary-foreground: oklch(0.17 0.02 168);
+  --secondary: oklch(0.26 0.016 168);
+  --secondary-foreground: oklch(0.955 0.008 95);
+  --muted: oklch(0.26 0.016 168);
+  --muted-foreground: oklch(0.72 0.014 155);
+  --accent: oklch(0.28 0.03 165);
+  --accent-foreground: oklch(0.955 0.008 95);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --ring: oklch(0.65 0.1 162);
+  --chart-1: oklch(0.7 0.12 162);
+  --chart-2: oklch(0.75 0.13 75);
+  --chart-3: oklch(0.65 0.09 205);
+  --chart-4: oklch(0.68 0.12 35);
+  --chart-5: oklch(0.64 0.09 320);
+  --sidebar: oklch(0.19 0.014 168);
+  --sidebar-foreground: oklch(0.955 0.008 95);
+  --sidebar-primary: oklch(0.74 0.115 162);
+  --sidebar-primary-foreground: oklch(0.17 0.02 168);
+  --sidebar-accent: oklch(0.28 0.03 165);
+  --sidebar-accent-foreground: oklch(0.955 0.008 95);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --sidebar-ring: oklch(0.65 0.1 162);
+}
+
+/* Type: Fraunces (display serif) for headings gives the product its
+   academy voice; Public Sans carries body/UI text. Both are self-hosted
+   variable fonts (@fontsource-variable packages, imported in main.jsx —
+   no runtime call to a font CDN). */
+@theme {
+  --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Fraunces Variable", ui-serif, Georgia, "Times New Roman",
+    serif;
 }
 
 @theme inline {
@@ -115,7 +132,31 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  /* One display voice for page-level headings everywhere (student,
+     admin, auth), set once here instead of per page. Fraunces reads
+     best slightly tight with optical sizing on. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    font-optical-sizing: auto;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 28%, transparent);
+  }
+  /* Respect reduced-motion globally: near-instant transitions/animations
+     for users who ask the OS for calm. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

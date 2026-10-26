@@ -28,7 +28,7 @@ const VerifyCertificate = () => {
   const notFound = isError || data?.status === "not_found";
   if (notFound) {
     return (
-      <PageShell className="py-14">
+      <PageShell className="py-10">
         <EmptyState
           icon={ShieldX}
           title="Certificate not found"

@@ -34,7 +34,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { EmptyState, PageHeader } from "./AdminUI";
+import { EmptyState, PageHeader } from "@/components/SiteUI";
 
 const DAY_MS = 86400000;
 
@@ -196,7 +196,7 @@ const Dashboard = () => {
       <div className="space-y-6">
         <PageHeader title="Dashboard" description="Sales overview for your courses." />
         <Card>
-          <EmptyState
+          <EmptyState bare
             icon={AlertCircle}
             title="Could not load sales data"
             description="Something went wrong while fetching your purchased courses."
@@ -322,7 +322,7 @@ const Dashboard = () => {
 
       {!hasSales ? (
         <Card className="shadow-sm">
-          <EmptyState
+          <EmptyState bare
             icon={ShoppingCart}
             title="No sales yet"
             description="When a student buys one of your courses, your revenue trend, top courses and recent sales will appear here."
@@ -340,7 +340,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {!hasRecentRevenue ? (
-                  <EmptyState
+                  <EmptyState bare
                     icon={IndianRupee}
                     title="No revenue in the last 30 days"
                     description="All of your sales are older than 30 days — they still count in the totals above and in Revenue by course."

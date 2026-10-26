@@ -2,11 +2,12 @@ import React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-// Shared building blocks for the STUDENT-facing site — the counterpart of
-// pages/admin/AdminUI.jsx, so the whole product speaks one design
-// language:
+// Shared building blocks for the WHOLE product — student pages and the
+// instructor admin both import from here (the old admin-only AdminUI.jsx
+// was a duplicate system with slightly different specs and is gone), so
+// every screen speaks one design language:
 //  - one page container (max-w-7xl, same gutters as the navbar)
-//  - page/section headers: bold tight title, muted description
+//  - page/section headers: display-serif title, muted description
 //  - one empty-state shape, one course-card skeleton
 // Everything colours through theme tokens — no hardcoded hex anywhere.
 
@@ -40,10 +41,13 @@ export const SectionHeader = ({ title, description, action, className }) => (
   </div>
 );
 
-export const EmptyState = ({ icon: Icon, title, description, action, className }) => (
+export const EmptyState = ({ icon: Icon, title, description, action, className, bare = false }) => (
   <div
     className={cn(
-      "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center",
+      "flex flex-col items-center justify-center gap-2 rounded-xl px-6 py-12 text-center",
+      // Standalone empty states get the dashed frame; `bare` is for when
+      // the empty state already sits inside a Card (no double frame).
+      bare ? "" : "border border-dashed",
       className
     )}
   >

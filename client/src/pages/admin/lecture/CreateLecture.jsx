@@ -11,7 +11,7 @@ import { ArrowLeft, ListVideo, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { EmptyState, PageHeader } from "../AdminUI";
+import { EmptyState, PageHeader } from "@/components/SiteUI";
 import Lecture from "./Lecture";
 
 const CreateLecture = () => {
@@ -111,7 +111,7 @@ const CreateLecture = () => {
           </div>
         ) : lectureError ? (
           <Card className="shadow-sm">
-            <EmptyState
+            <EmptyState bare
               icon={ListVideo}
               title="Could not load lectures"
               description="Something went wrong while fetching this course's lectures."
@@ -124,7 +124,7 @@ const CreateLecture = () => {
           </Card>
         ) : lectures.length === 0 ? (
           <Card className="shadow-sm">
-            <EmptyState
+            <EmptyState bare
               icon={ListVideo}
               title="No lectures yet"
               description="Create your first lecture above — a course needs at least one lecture before it can be published."

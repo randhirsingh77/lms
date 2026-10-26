@@ -48,7 +48,7 @@ const InstructorProfile = () => {
   const instructor = data?.instructor;
   if (isError || !instructor) {
     return (
-      <PageShell className="py-14">
+      <PageShell className="py-10">
         <EmptyState
           title="Instructor not found"
           description="This instructor profile doesn't exist or is no longer available."

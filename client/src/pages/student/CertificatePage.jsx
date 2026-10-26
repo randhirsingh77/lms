@@ -39,7 +39,7 @@ const CertificatePage = () => {
 
   if (!certificate) {
     return (
-      <PageShell className="py-14">
+      <PageShell className="py-10">
         <EmptyState
           title="Certificate not found"
           description="This certificate doesn't belong to your account, or it hasn't been issued yet."

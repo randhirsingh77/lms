@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ListVideo } from "lucide-react";
 import React from "react";
 import { Link } from "react-router-dom";
-import { PageHeader } from "../AdminUI";
+import { PageHeader } from "@/components/SiteUI";
 import CourseTab from "./CourseTab";
 
 const EditCourse = () => {

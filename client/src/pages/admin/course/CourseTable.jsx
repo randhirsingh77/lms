@@ -14,7 +14,7 @@ import { useGetCreatorCourseQuery } from "@/features/api/courseApi";
 import { AlertCircle, BookOpen, Pencil, Plus } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { EmptyState, PageHeader } from "../AdminUI";
+import { EmptyState, PageHeader } from "@/components/SiteUI";
 
 const CourseTable = () => {
   const { data, isLoading, isError, refetch } = useGetCreatorCourseQuery();
