@@ -265,15 +265,16 @@ export const editCourse = async (req,res) => {
 
         let course = await Course.findById(courseId);
         if(!assertCourseOwner(course, req, res)) return;
+        const previousThumbnail = course.courseThumbnail;
         let courseThumbnail;
+        let thumbnailFailed = false;
         if(thumbnail){
-            if(course.courseThumbnail){
-                const publicId = course.courseThumbnail.split("/").pop().split(".")[0];
-                await deleteMediaFromCloudinary(publicId); // delete old image
-            }
-            // upload a thumbnail on clourdinary — a provider failure used
-            // to escape as the generic "Failed to update course" 500 and
-            // leak the temp file; report the real reason and clean up.
+            // Upload the NEW thumbnail first; the old asset is deleted
+            // only after the new one is safely stored (below). The old
+            // order deleted the stored thumbnail BEFORE uploading — a
+            // failed upload left the course pointing at a deleted image
+            // — and its early 500 return threw away every text edit in
+            // the same form submit.
             try {
                 courseThumbnail = await uploadMedia(thumbnail.path);
             } catch {
@@ -281,9 +282,7 @@ export const editCourse = async (req,res) => {
             }
             fs.unlink(thumbnail.path, () => {}); // temp copy no longer needed
             if(!courseThumbnail?.secure_url){
-                return res.status(500).json({
-                    message:"Failed to upload course thumbnail"
-                })
+                thumbnailFailed = true;
             }
         }
 
@@ -312,6 +311,20 @@ export const editCourse = async (req,res) => {
         // the courseLevel enum (and any future rule) was not enforced here.
         course = await Course.findByIdAndUpdate(courseId, updateData, {new:true, runValidators:true});
 
+        // The text edits are saved either way; a failed thumbnail is
+        // reported specifically so the instructor knows what to retry.
+        if (thumbnailFailed) {
+            return res.status(500).json({
+                message:"Failed to upload course thumbnail"
+            })
+        }
+        // New thumbnail stored — now the old asset can go (best effort;
+        // the delete helper logs its own errors and never throws).
+        if (courseThumbnail?.secure_url && previousThumbnail) {
+            const publicId = previousThumbnail.split("/").pop().split(".")[0];
+            await deleteMediaFromCloudinary(publicId);
+        }
+
         return res.status(200).json({
             course,
             message:"Course updated successfully."
@@ -337,8 +350,16 @@ export const getCourseById = async (req,res) => {
                 message:"Course not found!"
             })
         }
+        // Same roster rule as the public catalogue: the enrolledStudents
+        // user-id list is the creator's private data. A published course
+        // is readable by ANY logged-in account here, so hand out the
+        // count, not the ids. (The owner still gets their full roster
+        // from the creator-courses list, which is caller-scoped.)
+        const coursePayload = course.toObject();
+        coursePayload.enrolledCount = (course.enrolledStudents || []).length;
+        delete coursePayload.enrolledStudents;
         return res.status(200).json({
-            course
+            course: coursePayload
         })
     } catch (error) {
         console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));

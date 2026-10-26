@@ -247,18 +247,15 @@ export const updateProfile = async (req,res) => {
             }
             updatedData.socialPrivacy = next;
         }
+        const previousPhotoUrl = user.photoUrl;
         if(profilePhoto){
-            // extract public id of the old image from the url if it exists;
-            if(user.photoUrl){
-                const publicId = user.photoUrl.split("/").pop().split(".")[0]; // extract public id
-                await deleteMediaFromCloudinary(publicId);
-            }
-
-            // Upload the new photo. A provider failure used to escape to
-            // the outer catch and surface as the generic "Failed to
-            // update profile" — the user couldn't tell the photo (not
-            // their text fields) was the problem — and the temp file was
-            // left on disk. Fail with the specific reason, always clean up.
+            // Upload the NEW photo FIRST; the old asset is deleted only
+            // after the new one is safely stored (below). The old order
+            // deleted the stored photo BEFORE uploading — a failed
+            // upload left photoUrl pointing at a deleted image — and
+            // the 500 return discarded every other field in the same
+            // submit, so a photo problem looked like "profile update
+            // failed" and ate the user's name/bio/social edits too.
             let cloudResponse = null;
             try {
                 cloudResponse = await uploadMedia(profilePhoto.path);
@@ -267,6 +264,12 @@ export const updateProfile = async (req,res) => {
             }
             fs.unlink(profilePhoto.path, () => {});
             if(!cloudResponse?.secure_url){
+                // Save the text-field updates anyway — the photo is the
+                // only thing that failed, so it is the only thing the
+                // user should have to retry. The message stays specific.
+                if (Object.keys(updatedData).length > 0) {
+                    await User.findByIdAndUpdate(userId, updatedData);
+                }
                 return res.status(500).json({
                     success:false,
                     message:"Failed to upload profile photo. Please try again."
@@ -275,6 +278,12 @@ export const updateProfile = async (req,res) => {
             updatedData.photoUrl = cloudResponse.secure_url;
         }
         const updatedUser = await User.findByIdAndUpdate(userId, updatedData, {new:true}).select("-password -resetPasswordToken -resetPasswordExpire");
+        // New photo saved — now the old asset can go (best effort; the
+        // delete helper logs its own errors and never throws).
+        if(profilePhoto && updatedData.photoUrl && previousPhotoUrl){
+            const publicId = previousPhotoUrl.split("/").pop().split(".")[0]; // extract public id
+            await deleteMediaFromCloudinary(publicId);
+        }
 
         return res.status(200).json({
             success:true,

@@ -253,6 +253,12 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
     // Replace the populated creator with its public summary: identity
     // fields + only the social links the instructor marked public.
     const coursePayload = course.toObject();
+    // The buyer roster (enrolledStudents user ids) is the instructor's
+    // private data — this public-to-students payload only needs the
+    // COUNT for the "students enrolled" line. The id list itself used
+    // to ride along to every viewer of the course page, buyer or not.
+    coursePayload.enrolledCount = (course.enrolledStudents || []).length;
+    delete coursePayload.enrolledStudents;
     if (course.creator) {
       coursePayload.creator = {
         _id: course.creator._id,
