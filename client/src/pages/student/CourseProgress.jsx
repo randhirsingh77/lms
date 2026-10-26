@@ -13,9 +13,10 @@ import {
   useGetMyCertificatesQuery,
   useIssueCertificateMutation,
 } from "@/features/api/certificateApi";
+import DoubtsPanel from "@/components/DoubtsPanel";
 import { cn } from "@/lib/utils";
 import { Award, CheckCircle, CheckCircle2, CirclePlay, VideoOff } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -53,6 +54,9 @@ const CourseProgress = () => {
   }, [completedSuccess, inCompletedSuccess, markCompleteData, markInCompleteData, refetch]);
 
   const [currentLecture, setCurrentLecture] = useState(null);
+  // The doubts panel reads the current moment from (and seeks) this
+  // element — the player stays a plain native <video>.
+  const videoRef = useRef(null);
 
   if (isLoading) {
     return (
@@ -180,23 +184,31 @@ const CourseProgress = () => {
       />
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px]">
-        {/* Video section */}
-        <Card className="gap-0 overflow-hidden py-0">
-          <video
-            src={activeLecture?.videoUrl}
-            controls
-            className="aspect-video w-full bg-black"
-            onPlay={() => handleLectureProgress(activeLecture._id)}
+        {/* Video section + timestamped doubts for the active lecture */}
+        <div className="min-w-0 space-y-6">
+          <Card className="gap-0 overflow-hidden py-0">
+            <video
+              ref={videoRef}
+              src={activeLecture?.videoUrl}
+              controls
+              className="aspect-video w-full bg-black"
+              onPlay={() => handleLectureProgress(activeLecture._id)}
+            />
+            <div className="p-5">
+              <p className="text-sm text-muted-foreground">
+                Lecture {activeIndex + 1} of {courseDetails.lectures.length}
+              </p>
+              <h2 className="mt-1 text-lg font-semibold">
+                {activeLecture.lectureTitle}
+              </h2>
+            </div>
+          </Card>
+          <DoubtsPanel
+            courseId={courseId}
+            lectureId={activeLecture?._id}
+            videoRef={videoRef}
           />
-          <div className="p-5">
-            <p className="text-sm text-muted-foreground">
-              Lecture {activeIndex + 1} of {courseDetails.lectures.length}
-            </p>
-            <h2 className="mt-1 text-lg font-semibold">
-              {activeLecture.lectureTitle}
-            </h2>
-          </div>
-        </Card>
+        </div>
 
         {/* Lecture list */}
         <Card className="gap-0 overflow-hidden py-0">

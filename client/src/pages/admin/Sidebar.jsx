@@ -7,7 +7,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Home, LayoutDashboard, Menu, PlusCircle, SquareLibrary } from "lucide-react";
+import { GraduationCap, Home, LayoutDashboard, Menu, MessagesSquare, PlusCircle, SquareLibrary } from "lucide-react";
 import React, { useRef } from "react";
 import { useSelector } from "react-redux";
 import { Link, NavLink, Outlet } from "react-router-dom";
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { to: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "course", label: "Courses", icon: SquareLibrary },
   { to: "course/create", label: "Create Course", icon: PlusCircle },
+  { to: "doubts", label: "Doubts inbox", icon: MessagesSquare },
 ];
 
 const AdminNav = ({ onNavigate }) => {

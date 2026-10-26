@@ -18,6 +18,7 @@ import AddCourse from "./pages/admin/course/AddCourse";
 import EditCourse from "./pages/admin/course/EditCourse";
 import CreateLecture from "./pages/admin/lecture/CreateLecture";
 import EditLecture from "./pages/admin/lecture/EditLecture";
+import DoubtsInbox from "./pages/admin/DoubtsInbox";
 import CourseDetail from "./pages/student/CourseDetail";
 import CourseProgress from "./pages/student/CourseProgress";
 import VerifyCertificate from "./pages/student/VerifyCertificate";
@@ -156,6 +157,10 @@ const appRouter = createBrowserRouter([
           {
             path: "dashboard",
             element: <Dashboard />,
+          },
+          {
+            path: "doubts",
+            element: <DoubtsInbox />,
           },
           {
             path: "course",
