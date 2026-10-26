@@ -2,11 +2,12 @@ import express from "express";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
 import isInstructor from "../middlewares/isInstructor.js";
 import { validateIds } from "../middlewares/validateIds.js";
-import { createCheckoutSession, getAllPurchasedCourse, getCourseDetailWithPurchaseStatus, stripeWebhook } from "../controllers/coursePurchase.controller.js";
+import { createCheckoutSession, getAllPurchasedCourse, getCourseDetailWithPurchaseStatus, stripeWebhook, verifyCheckoutSession } from "../controllers/coursePurchase.controller.js";
 
 const router = express.Router();
 
 router.route("/checkout/create-checkout-session").post(isAuthenticated, createCheckoutSession);
+router.route("/checkout/verify-session").post(isAuthenticated, verifyCheckoutSession);
 // Raw body for this route is mounted in index.js (before express.json()).
 router.route("/webhook").post(stripeWebhook);
 router.route("/course/:courseId/detail-with-status").get(isAuthenticated, validateIds("courseId"), getCourseDetailWithPurchaseStatus);

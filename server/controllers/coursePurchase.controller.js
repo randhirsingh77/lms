@@ -115,7 +115,7 @@ export const createCheckoutSession = async (req, res) => {
       // ?checkout=success tells the progress page this arrival came from
       // a payment, so it may briefly poll while the webhook lands (the
       // webhook and the browser redirect race each other).
-      success_url: `${frontendBaseUrl()}/course-progress/${courseId}?checkout=success`, // once payment successful redirect to course progress page
+      success_url: `${frontendBaseUrl()}/course-progress/${courseId}?checkout=success&session_id={CHECKOUT_SESSION_ID}`, // once payment successful redirect to course progress page
       cancel_url: `${frontendBaseUrl()}/course-detail/${courseId}`,
       metadata: {
         courseId: courseId,
@@ -147,6 +147,33 @@ export const createCheckoutSession = async (req, res) => {
     // hanging until the browser gave up.
     return res.status(500).json({ success: false, message: "Failed to create checkout session" });
   }
+};
+
+// Marks a purchase completed and enrolls the buyer. Shared by the Stripe
+// webhook and the verify-on-return endpoint so both paths behave exactly
+// the same. Idempotent: completing an already-completed purchase is a
+// no-op, so the webhook and the browser return can race safely.
+//
+// NOTE: a purchase must never change lecture preview flags — the old
+// webhook set isPreviewFree=true on EVERY lecture after the first sale,
+// which silently unlocked the whole course for every visitor.
+const completePurchase = async (purchase, amountTotal) => {
+  if (purchase.status === "completed") return purchase;
+  if (amountTotal) purchase.amount = amountTotal / 100;
+  purchase.status = "completed";
+  await purchase.save();
+  const courseId = purchase.courseId?._id || purchase.courseId;
+  await User.findByIdAndUpdate(
+    purchase.userId,
+    { $addToSet: { enrolledCourses: courseId } },
+    { new: true }
+  );
+  await Course.findByIdAndUpdate(
+    courseId,
+    { $addToSet: { enrolledStudents: purchase.userId } },
+    { new: true }
+  );
+  return purchase;
 };
 
 export const stripeWebhook = async (req, res) => {
@@ -187,33 +214,7 @@ export const stripeWebhook = async (req, res) => {
         return res.status(404).json({ message: "Purchase not found" });
       }
 
-      if (session.amount_total) {
-        purchase.amount = session.amount_total / 100;
-      }
-      purchase.status = "completed";
-
-      // NOTE: the old code here set isPreviewFree=true on EVERY lecture of
-      // the course. After the first sale, the whole course became a free
-      // preview for every visitor (CourseDetail treats preview lectures as
-      // playable) — one purchase silently unlocked the course for the
-      // world. Preview status is an instructor choice per lecture; a
-      // purchase must never change it.
-
-      await purchase.save();
-
-      // Update user's enrolledCourses
-      await User.findByIdAndUpdate(
-        purchase.userId,
-        { $addToSet: { enrolledCourses: purchase.courseId._id } }, // Add course ID to enrolledCourses
-        { new: true }
-      );
-
-      // Update course to add user ID to enrolledStudents
-      await Course.findByIdAndUpdate(
-        purchase.courseId._id,
-        { $addToSet: { enrolledStudents: purchase.userId } }, // Add user ID to enrolledStudents
-        { new: true }
-      );
+      await completePurchase(purchase, session.amount_total);
     } catch (error) {
       console.error("Error handling event:", error);
       return res.status(500).json({ message: "Internal Server Error" });
@@ -221,6 +222,50 @@ export const stripeWebhook = async (req, res) => {
   }
   res.status(200).send();
 };
+// Verify-on-return: the browser lands back from Stripe long before the
+// webhook is guaranteed to arrive (a sleeping free-tier server can hold
+// the webhook up, and Stripe's retries are spaced far apart). Instead of
+// making a student who just paid stare at a "confirming" screen, the
+// progress page sends the checkout session id here; we ask Stripe
+// directly whether it was paid and, if so, complete the purchase through
+// the exact same path as the webhook. The webhook stays as the backstop
+// for buyers who close the tab before returning.
+export const verifyCheckoutSession = async (req, res) => {
+  try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({ success: false, message: "Payments are not configured on this server." });
+    }
+    const { sessionId } = req.body || {};
+    if (typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {
+      return res.status(400).json({ success: false, message: "Invalid sessionId" });
+    }
+    let session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch {
+      return res.status(400).json({ success: false, message: "Could not verify this payment session." });
+    }
+    // The session must belong to the signed-in user — never let one
+    // account complete a purchase using another account's session id.
+    if (!session.metadata || String(session.metadata.userId) !== String(req.id)) {
+      return res.status(403).json({ success: false, message: "This payment session does not belong to your account." });
+    }
+    if (session.payment_status !== "paid") {
+      return res.status(200).json({ success: true, purchased: false });
+    }
+    const purchase = await CoursePurchase.findOne({ paymentId: session.id });
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: "Purchase not found" });
+    }
+    await completePurchase(purchase, session.amount_total);
+    return res.status(200).json({ success: true, purchased: true });
+  } catch (error) {
+    console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
+    return res.status(500).json({ success: false, message: "Failed to verify payment" });
+  }
+};
+
 export const getCourseDetailWithPurchaseStatus = async (req, res) => {
   try {
     const { courseId } = req.params;

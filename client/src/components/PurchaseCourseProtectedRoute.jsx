@@ -1,6 +1,6 @@
 import PageLoader from "@/components/PageLoader";
-import { useGetCourseDetailWithStatusQuery } from "@/features/api/purchaseApi";
-import React, { useEffect, useState } from "react";
+import { useGetCourseDetailWithStatusQuery, useVerifyCheckoutSessionMutation } from "@/features/api/purchaseApi";
+import React, { useEffect, useRef, useState } from "react";
 
 import { useParams, Navigate, useSearchParams } from "react-router-dom";
 
@@ -18,11 +18,28 @@ const PurchaseCourseProtectedRoute = ({ children }) => {
   const { courseId } = useParams();
   const [searchParams] = useSearchParams();
   const fromCheckout = searchParams.get("checkout") === "success";
+  const sessionId = searchParams.get("session_id");
   const { data, isLoading, refetch } = useGetCourseDetailWithStatusQuery(courseId);
+  const [verifyCheckoutSession] = useVerifyCheckoutSessionMutation();
+  const verifyFired = useRef(false);
   const [attempts, setAttempts] = useState(0);
 
   const purchased = !!data?.purchased;
   const confirming = fromCheckout && !purchased && attempts < MAX_CONFIRM_ATTEMPTS;
+
+  // Don't wait for the webhook: with the session id in the return URL,
+  // ask the server to confirm the payment with Stripe directly. This
+  // completes the purchase in about a second; the polling below stays
+  // as a fallback for returns without a session id.
+  useEffect(() => {
+    if (fromCheckout && sessionId && !purchased && !verifyFired.current) {
+      verifyFired.current = true;
+      verifyCheckoutSession(sessionId)
+        .unwrap()
+        .catch(() => {})
+        .finally(() => refetch());
+    }
+  }, [fromCheckout, sessionId, purchased, verifyCheckoutSession, refetch]);
 
   useEffect(() => {
     if (!isLoading && confirming) {
