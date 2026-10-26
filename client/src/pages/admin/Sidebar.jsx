@@ -1,22 +1,17 @@
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Home, LayoutDashboard, Menu, MessagesSquare, PlusCircle, SquareLibrary } from "lucide-react";
-import React, { useRef } from "react";
+import { GraduationCap, Home, LayoutDashboard, MessagesSquare, PlusCircle, SquareLibrary } from "lucide-react";
+import React from "react";
 import { useSelector } from "react-redux";
 import { Link, NavLink, Outlet } from "react-router-dom";
 
 // Admin shell: a sticky sidebar on desktop (it sticks below the fixed
-// 64px site navbar, not under it) and a slide-in sheet with the same
-// navigation on smaller screens. Content is one centred column with a
-// single padding rule — p-4 / sm:p-6 / lg:p-8 — on every admin page.
-const NAV_ITEMS = [
+// 64px site navbar, not under it). On smaller screens there is no second
+// menu bar here — the site navbar's single mobile menu carries these
+// same items in its "Manage" section (see Navbar.jsx), so an instructor
+// never sees two hamburger buttons at once. Content is one centred
+// column with a single padding rule — p-4 / sm:p-6 / lg:p-8 — on every
+// admin page.
+export const NAV_ITEMS = [
   { to: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "course", label: "Courses", icon: SquareLibrary },
   { to: "course/create", label: "Create Course", icon: PlusCircle },
@@ -92,7 +87,6 @@ const AdminNav = ({ onNavigate }) => {
 };
 
 const Sidebar = () => {
-  const closeRef = useRef(null);
   return (
     <div className="flex w-full">
       <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 border-r bg-card/40 p-4 lg:block">
@@ -100,22 +94,6 @@ const Sidebar = () => {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3 border-b px-4 py-3 lg:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="h-11 w-11" aria-label="Open admin menu">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-4">
-              <SheetTitle className="sr-only">Admin menu</SheetTitle>
-              <SheetClose ref={closeRef} className="hidden" aria-hidden="true" tabIndex={-1} />
-              <AdminNav onNavigate={() => closeRef.current?.click()} />
-            </SheetContent>
-          </Sheet>
-          <p className="text-sm font-semibold">Instructor admin</p>
-        </div>
-
         {/* App.jsx already provides the page <main>; a second nested one
             is invalid HTML, so the admin content column is a div. */}
         <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 lg:p-8">

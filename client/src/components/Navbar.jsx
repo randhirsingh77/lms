@@ -1,4 +1,5 @@
-import { GraduationCap, KeyRound, Menu } from "lucide-react";
+import { GraduationCap, Menu } from "lucide-react";
+import { NAV_ITEMS as ADMIN_NAV_ITEMS } from "@/pages/admin/Sidebar";
 import React from "react";
 import {
   DropdownMenu,
@@ -118,10 +119,7 @@ const Navbar = () => {
                     <Link to="/profile">Edit Profile</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/change-password" className="flex items-center gap-2">
-                      <KeyRound className="h-4 w-4" />
-                      Reset Password
-                    </Link>
+                    <Link to="/change-password">Reset Password</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={logoutHandler}>
                     Log out
@@ -147,7 +145,11 @@ const Navbar = () => {
               </Button>
             </div>
           )}
-          <div className="md:hidden">
+          {/* One hamburger for everyone. Instructors keep it visible up
+              to lg because the admin sidebar only appears at lg — below
+              that, this menu (with its Manage section) is the only admin
+              navigation. Other users get it below md as before. */}
+          <div className={user?.role === "instructor" ? "lg:hidden" : "md:hidden"}>
             <MobileNavbar user={user} onLogout={logoutHandler} />
           </div>
         </div>
@@ -213,21 +215,33 @@ const MobileNavbar = ({ user, onLogout }) => {
                 </Link>
               </SheetClose>
               <SheetClose asChild>
-                <Link to="/change-password" className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent">
-                  <KeyRound className="h-4 w-4" />
+                <Link to="/change-password" className="rounded-lg px-3 py-2.5 hover:bg-accent">
                   Reset Password
                 </Link>
               </SheetClose>
-              {user?.role === "instructor" ? (
-                <SheetClose asChild>
-                  <Link to="/admin/dashboard" className="rounded-lg px-3 py-2.5 hover:bg-accent">
-                    Dashboard
-                  </Link>
-                </SheetClose>
-              ) : null}
             </>
           ) : null}
         </nav>
+
+        {user?.role === "instructor" ? (
+          <div className="mt-5">
+            <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Manage
+            </p>
+            <nav className="flex flex-col gap-1 text-base font-medium">
+              {ADMIN_NAV_ITEMS.map((item) => (
+                <SheetClose asChild key={item.to}>
+                  <Link
+                    to={`/admin/${item.to}`}
+                    className="rounded-lg px-3 py-2.5 hover:bg-accent"
+                  >
+                    {item.label}
+                  </Link>
+                </SheetClose>
+              ))}
+            </nav>
+          </div>
+        ) : null}
 
         <div className="mt-auto flex flex-col gap-2 border-t pt-5">
           {user ? (
