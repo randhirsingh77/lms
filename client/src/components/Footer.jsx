@@ -4,7 +4,10 @@ import { Link } from "react-router-dom";
 import { PageShell } from "./SiteUI";
 
 // Site footer: brand + the real routes of the app. Kept deliberately
-// small — no invented links, awards or social proof.
+// small — no invented links, awards or social proof. On phones the
+// Explore links stack in ONE column as 40px-tall tap rows (the old
+// two-column grid of 20px text links was cramped and hard to tap);
+// two columns return from the sm breakpoint up.
 const Footer = () => {
   return (
     <footer className="border-t bg-muted/40">
@@ -22,26 +25,29 @@ const Footer = () => {
               sales dashboard for the instructors who teach them.
             </p>
           </div>
-          <nav className="grid grid-cols-2 gap-x-16 gap-y-2 text-sm">
-            <span className="col-span-2 pb-1 font-semibold">Explore</span>
-            <Link to="/" className="text-muted-foreground transition-colors hover:text-foreground">
+          <nav className="grid grid-cols-1 gap-x-16 gap-y-1 text-sm sm:grid-cols-2">
+            <span className="pb-1 font-semibold sm:col-span-2">Explore</span>
+            <Link
+              to="/"
+              className="flex min-h-[40px] items-center text-muted-foreground transition-colors hover:text-foreground"
+            >
               Home
             </Link>
             <Link
               to="/course/search?query="
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex min-h-[40px] items-center text-muted-foreground transition-colors hover:text-foreground"
             >
               Browse courses
             </Link>
             <Link
               to="/my-learning"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex min-h-[40px] items-center text-muted-foreground transition-colors hover:text-foreground"
             >
               My learning
             </Link>
             <Link
               to="/profile"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="flex min-h-[40px] items-center text-muted-foreground transition-colors hover:text-foreground"
             >
               Profile
             </Link>

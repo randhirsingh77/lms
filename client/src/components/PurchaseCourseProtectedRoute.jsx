@@ -1,5 +1,5 @@
+import PageLoader from "@/components/PageLoader";
 import { useGetCourseDetailWithStatusQuery } from "@/features/api/purchaseApi";
-import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 import { useParams, Navigate, useSearchParams } from "react-router-dom";
@@ -35,25 +35,18 @@ const PurchaseCourseProtectedRoute = ({ children }) => {
   }, [isLoading, confirming, refetch]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-24 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading…
-      </div>
-    );
+    return <PageLoader contained />;
   }
 
   if (purchased) return children;
 
   if (confirming) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <p className="font-medium">Confirming your payment…</p>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          Your payment went through — we&apos;re just waiting for the
-          confirmation to reach us. This usually takes a few seconds.
-        </p>
-      </div>
+      <PageLoader
+        contained
+        message="Confirming your payment…"
+        description="Your payment went through — we're just waiting for the confirmation to reach us. This usually takes a few seconds."
+      />
     );
   }
 

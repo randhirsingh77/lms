@@ -1,7 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import React from "react";
+import { BookOpen } from "lucide-react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
 // THE course card for the whole student site — home grid, My Learning,
@@ -12,6 +13,12 @@ import { Link } from "react-router-dom";
 // creator row is a REAL second link to the instructor's public page,
 // lifted above the stretched area with relative z-10 — anchors can't
 // nest, so it can't live inside the title link.
+//
+// Thumbnails sit in a FIXED 16:9 box at every width (the old flat
+// 160px strip cropped differently per breakpoint), and a missing or
+// failed thumbnail shows a quiet muted tile with a book icon instead
+// of a broken-image frame — so every card in a row keeps the same
+// shape and the titles/prices stay aligned.
 const initialsOf = (name) =>
   (name || "?")
     .split(" ")
@@ -21,15 +28,24 @@ const initialsOf = (name) =>
     .toUpperCase();
 
 const CourseCard = ({ course }) => {
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const showThumb = !!course.courseThumbnail && !thumbFailed;
   return (
     <Card className="group relative flex h-full flex-col gap-0 overflow-hidden rounded-xl py-0 shadow-sm transition-shadow duration-300 hover:shadow-md">
-      <div className="relative shrink-0">
-        <img
-          src={course.courseThumbnail}
-          alt={course.courseTitle || "Course thumbnail"}
-          className="h-40 w-full object-cover"
-          loading="lazy"
-        />
+      <div className="relative aspect-video shrink-0 bg-muted">
+        {showThumb ? (
+          <img
+            src={course.courseThumbnail}
+            alt={course.courseTitle || "Course thumbnail"}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setThumbFailed(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <BookOpen className="h-10 w-10" aria-hidden />
+          </div>
+        )}
       </div>
       <CardContent className="flex flex-1 flex-col gap-3 p-5">
         <h3 className="line-clamp-1 text-lg font-semibold group-hover:underline">

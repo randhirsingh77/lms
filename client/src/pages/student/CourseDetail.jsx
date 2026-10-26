@@ -118,7 +118,7 @@ const CourseDetail = () => {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Users size={16} />
-              {course?.enrolledStudents?.length ?? 0} students enrolled
+              {course?.enrolledCount ?? course?.enrolledStudents?.length ?? 0} students enrolled
             </span>
           </div>
         </PageShell>
@@ -134,9 +134,12 @@ const CourseDetail = () => {
                 MUST be sanitised before hitting the DOM: rendering it raw
                 let any instructor account inject <script>/event handlers
                 into every student's browser (stored XSS). DOMPurify keeps
-                the formatting tags and strips anything executable. */}
+                the formatting tags and strips anything executable. The
+                arbitrary-variant guards are overflow insurance: a huge
+                table, image or unbroken link in the HTML can no longer
+                push the page wider than the screen. */}
             <div
-              className="leading-relaxed text-muted-foreground [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5"
+              className="break-words leading-relaxed text-muted-foreground [&_a]:break-words [&_img]:h-auto [&_img]:max-w-full [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_ul]:list-disc [&_ul]:pl-5"
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(course.description || ""),
               }}

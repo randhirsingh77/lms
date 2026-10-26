@@ -62,7 +62,9 @@ export const EmptyState = ({ icon: Icon, title, description, action, className }
 
 export const CourseCardSkeleton = () => (
   <div className="overflow-hidden rounded-xl border bg-card">
-    <Skeleton className="h-40 w-full rounded-none" />
+    {/* 16:9 to match CourseCard exactly, so the grid does not jump
+        when the real thumbnails land. */}
+    <Skeleton className="aspect-video w-full rounded-none" />
     <div className="space-y-3 p-5">
       <Skeleton className="h-5 w-3/4" />
       <div className="flex items-center gap-3">

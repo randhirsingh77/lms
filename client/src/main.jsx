@@ -6,7 +6,7 @@ import { Provider } from "react-redux";
 import { appStore } from "./app/store";
 import { Toaster } from "./components/ui/sonner";
 import { useLoadUserQuery } from "./features/api/authApi";
-import LoadingSpinner from "./components/LoadingSpinner";
+import PageLoader from "./components/PageLoader";
 
 // Session gate: the app renders only once the /profile probe settles, so a
 // hard refresh on a protected page restores the session IN PLACE instead
@@ -37,7 +37,7 @@ const Custom = ({ children }) => {
 
   const stillRestoring =
     isLoading || (isError && !isDefinitive && retries < MAX_SESSION_RETRIES);
-  return <>{stillRestoring ? <LoadingSpinner /> : <>{children}</>}</>;
+  return <>{stillRestoring ? <PageLoader /> : <>{children}</>}</>;
 };
 
 createRoot(document.getElementById("root")).render(
