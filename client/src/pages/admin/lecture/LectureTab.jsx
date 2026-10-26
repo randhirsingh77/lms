@@ -45,9 +45,17 @@ const LectureTab = () => {
       setIsFree(Boolean(lecture.isPreviewFree));
       // The lecture stores videoUrl/publicId directly — there is no
       // lecture.videoInfo object; reading one left this state undefined.
+      // R2-stored lectures carry provider/key and play from playbackUrl;
+      // videoUrl mirrors the same resolved URL on the server, so the
+      // preview below works for both stores.
       setUploadVideoInfo(
         lecture.videoUrl
-          ? { videoUrl: lecture.videoUrl, publicId: lecture.publicId }
+          ? {
+              videoUrl: lecture.playbackUrl || lecture.videoUrl,
+              publicId: lecture.publicId,
+              provider: lecture.provider || "cloudinary",
+              key: lecture.key,
+            }
           : null
       );
     }
@@ -60,26 +68,68 @@ const LectureTab = () => {
     { data: removeData, isLoading: removeLoading, isSuccess: removeSuccess },
   ] = useRemoveLectureMutation();
 
+  // Two upload paths, chosen per file by the server: when the owner
+  // has configured Cloudflare R2, the file goes browser→R2 directly
+  // against a short-lived presigned URL (fast, and the API server never
+  // proxies video bytes). Otherwise the original Cloudinary flow below
+  // runs exactly as it always has.
+  const uploadToR2 = async (file) => {
+    const presign = await axios.post(
+      `${MEDIA_API}/r2/presign`,
+      { filename: file.name, contentType: file.type || "video/mp4" },
+      { withCredentials: true }
+    );
+    const { uploadUrl, key, playbackUrl } = presign.data;
+    await axios.put(uploadUrl, file, {
+      headers: { "Content-Type": file.type || "video/mp4" },
+      onUploadProgress: ({ loaded, total }) => {
+        if (total) setUploadProgress(Math.round((loaded * 100) / total));
+      },
+    });
+    setUploadVideoInfo({ provider: "r2", key, videoUrl: playbackUrl, publicId: null });
+    toast.success("Video uploaded.");
+  };
+
+  const uploadToCloudinary = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await axios.post(`${MEDIA_API}/upload-video`, formData, {
+      withCredentials: true, // the upload endpoint requires login now
+      onUploadProgress: ({ loaded, total }) => {
+        setUploadProgress(Math.round((loaded * 100) / total));
+      },
+    });
+
+    if (res.data.success) {
+      setUploadVideoInfo({
+        provider: "cloudinary",
+        videoUrl: res.data.data.secure_url || res.data.data.url,
+        publicId: res.data.data.public_id,
+      });
+      toast.success(res.data.message);
+    }
+  };
+
   const fileChangeHandler = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
       setMediaProgress(true);
       try {
-        const res = await axios.post(`${MEDIA_API}/upload-video`, formData, {
-          withCredentials: true, // the upload endpoint requires login now
-          onUploadProgress: ({ loaded, total }) => {
-            setUploadProgress(Math.round((loaded * 100) / total));
-          },
-        });
-
-        if (res.data.success) {
-          setUploadVideoInfo({
-            videoUrl: res.data.data.secure_url || res.data.data.url,
-            publicId: res.data.data.public_id,
+        let provider = "cloudinary";
+        try {
+          const providerRes = await axios.get(`${MEDIA_API}/storage-provider`, {
+            withCredentials: true,
           });
-          toast.success(res.data.message);
+          provider = providerRes.data.provider || "cloudinary";
+        } catch {
+          // If the provider check itself fails, fall back to the
+          // long-standing Cloudinary path rather than blocking uploads.
+          provider = "cloudinary";
+        }
+        if (provider === "r2") {
+          await uploadToR2(file);
+        } else {
+          await uploadToCloudinary(file);
         }
       } catch (error) {
         console.error(error?.message || "Upload failed");

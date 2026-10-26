@@ -190,7 +190,7 @@ const CourseProgress = () => {
           <Card className="gap-0 overflow-hidden py-0">
             <video
               ref={videoRef}
-              src={activeLecture?.videoUrl}
+              src={activeLecture?.playbackUrl || activeLecture?.videoUrl}
               controls
               className="aspect-video w-full bg-black"
               onPlay={() => handleLectureProgress(activeLecture._id)}

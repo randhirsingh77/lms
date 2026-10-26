@@ -4,6 +4,7 @@ import { Course } from "../models/course.model.js";
 import { Lecture } from "../models/lecture.model.js";
 import { Category, categoryKeyOf } from "../models/category.model.js";
 import {deleteMediaFromCloudinary, deleteVideoFromCloudinary, uploadMedia} from "../utils/cloudinary.js";
+import {isR2Configured, getR2PublicUrl, deleteR2Object} from "../utils/r2.js";
 
 export const createCourse = async (req,res) => {
     try {
@@ -457,8 +458,39 @@ export const editLecture = async (req,res) => {
 
         // update lecture (string fields accept strings only)
         if(typeof lectureTitle === "string" && lectureTitle.trim()) lecture.lectureTitle = lectureTitle;
-        if(typeof videoInfo?.videoUrl === "string") lecture.videoUrl = videoInfo.videoUrl;
-        if(typeof videoInfo?.publicId === "string") lecture.publicId = videoInfo.publicId;
+        if(videoInfo?.provider === "r2"){
+            // R2 registration: the file already went browser→R2 directly
+            // (see /media/r2/presign); here we only record WHERE it is.
+            // The key must be one of ours (lectures/…) and R2 must
+            // actually be configured — a key with no configured store
+            // would produce a lecture that can never play.
+            if(typeof videoInfo.key !== "string" || !videoInfo.key.startsWith("lectures/")){
+                return res.status(400).json({
+                    message:"A valid R2 object key is required."
+                })
+            }
+            if(!isR2Configured()){
+                return res.status(503).json({
+                    message:"R2 storage is not configured on this server."
+                })
+            }
+            const playbackUrl = getR2PublicUrl(videoInfo.key);
+            lecture.provider = "r2";
+            lecture.key = videoInfo.key;
+            lecture.playbackUrl = playbackUrl;
+            lecture.videoUrl = playbackUrl;
+            lecture.publicId = undefined;
+        } else {
+            if(typeof videoInfo?.videoUrl === "string"){
+                lecture.videoUrl = videoInfo.videoUrl;
+                // Cloudinary stays the default store; playbackUrl simply
+                // mirrors videoUrl so players have one field to read.
+                lecture.provider = "cloudinary";
+                lecture.playbackUrl = videoInfo.videoUrl;
+                lecture.key = undefined;
+            }
+            if(typeof videoInfo?.publicId === "string") lecture.publicId = videoInfo.publicId;
+        }
         if(typeof isPreviewFree === "boolean") lecture.isPreviewFree = isPreviewFree;
 
         await lecture.save();
@@ -508,7 +540,10 @@ export const removeLecture = async (req,res) => {
         //     course reference with no lecture behind it).
         // A 200 from this endpoint now means the lecture record and the
         // reference are both gone; a repeat delete is a clean 404.
-        if(lecture.publicId){
+        if(lecture.provider === "r2" && lecture.key){
+            // Same best-effort contract as the Cloudinary delete below.
+            await deleteR2Object(lecture.key);
+        } else if(lecture.publicId){
             await deleteVideoFromCloudinary(lecture.publicId);
         }
         await Lecture.findByIdAndDelete(lectureId);

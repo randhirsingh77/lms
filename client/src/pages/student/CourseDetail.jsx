@@ -195,7 +195,7 @@ const CourseDetail = () => {
                   the app (this preview was the last ReactPlayer user). */}
               <video
                 className="h-full w-full"
-                src={course.lectures?.[0]?.videoUrl || undefined}
+                src={course.lectures?.[0]?.playbackUrl || course.lectures?.[0]?.videoUrl || undefined}
                 poster={course.courseThumbnail || undefined}
                 controls
                 preload="metadata"
