@@ -4,7 +4,9 @@ import mongoose from "mongoose";
 // answer and an explanation — those fields are SERVER-ONLY: the
 // student-facing endpoint rebuilds the payload without them and
 // scoring happens here, never in the browser (see quiz.controller).
-const questionSchema = new mongoose.Schema(
+// Exported so standalone tests (test.model.js) reuse the exact same
+// question shape and validation instead of growing a second dialect.
+export const questionSchema = new mongoose.Schema(
   {
     prompt: { type: String, required: true, maxlength: 500 },
     options: {

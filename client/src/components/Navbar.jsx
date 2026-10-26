@@ -78,9 +78,14 @@ const Navbar = () => {
               Browse Courses
             </NavLink>
             {user ? (
-              <NavLink to="/my-learning" className={navLinkClass}>
-                My Learning
-              </NavLink>
+              <>
+                <NavLink to="/my-learning" className={navLinkClass}>
+                  My Learning
+                </NavLink>
+                <NavLink to="/tests" className={navLinkClass}>
+                  Tests
+                </NavLink>
+              </>
             ) : null}
           </nav>
         </div>
@@ -207,6 +212,11 @@ const MobileNavbar = ({ user, onLogout }) => {
               <SheetClose asChild>
                 <Link to="/my-learning" className="rounded-lg px-3 py-2.5 hover:bg-accent">
                   My Learning
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link to="/tests" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+                  Tests
                 </Link>
               </SheetClose>
               <SheetClose asChild>

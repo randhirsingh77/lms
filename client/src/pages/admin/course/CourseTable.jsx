@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useGetCreatorCourseQuery } from "@/features/api/courseApi";
-import { AlertCircle, BookOpen, Pencil, Plus } from "lucide-react";
+import { AlertCircle, BookOpen, ClipboardList, Pencil, Plus } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState, PageHeader } from "@/components/SiteUI";
@@ -125,14 +125,24 @@ const CourseTable = () => {
                       {course.coursePrice != null ? `₹${course.coursePrice}` : "NA"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        className="h-10"
-                        onClick={() => navigate(`${course._id}`)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Edit
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-10"
+                          onClick={() => navigate(`${course._id}/tests`)}
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          Tests
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-10"
+                          onClick={() => navigate(`${course._id}`)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

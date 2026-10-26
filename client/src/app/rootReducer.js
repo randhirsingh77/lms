@@ -7,6 +7,7 @@ import { courseProgressApi } from "@/features/api/courseProgressApi";
 import { certificateApi } from "@/features/api/certificateApi";
 import { doubtsApi } from "@/features/api/doubtsApi";
 import { quizApi } from "@/features/api/quizApi";
+import { testApi } from "@/features/api/testApi";
 
 const rootReducer = combineReducers({
     [authApi.reducerPath]:authApi.reducer,
@@ -16,6 +17,7 @@ const rootReducer = combineReducers({
     [certificateApi.reducerPath]:certificateApi.reducer,
     [doubtsApi.reducerPath]:doubtsApi.reducer,
     [quizApi.reducerPath]:quizApi.reducer,
+    [testApi.reducerPath]:testApi.reducer,
     auth:authReducer, 
 });
 export default rootReducer;

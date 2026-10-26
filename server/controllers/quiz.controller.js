@@ -16,7 +16,9 @@ import { loadCourseForProgress } from "./courseProgress.controller.js";
 const isStr = (v, min, max) =>
   typeof v === "string" && v.trim().length >= min && v.trim().length <= max;
 
-const validateQuestions = (questions) => {
+// Exported for reuse by test.controller.js — one question validator
+// for both quizzes and tests.
+export const validateQuestions = (questions) => {
   if (!Array.isArray(questions) || questions.length < 1 || questions.length > 20) {
     return "A quiz needs between 1 and 20 questions.";
   }

@@ -19,6 +19,11 @@ import EditCourse from "./pages/admin/course/EditCourse";
 import CreateLecture from "./pages/admin/lecture/CreateLecture";
 import EditLecture from "./pages/admin/lecture/EditLecture";
 import DoubtsInbox from "./pages/admin/DoubtsInbox";
+import CourseTests from "./pages/admin/course/CourseTests";
+import TestAttempts from "./pages/admin/course/TestAttempts";
+import Tests from "./pages/student/Tests";
+import TestAttempt from "./pages/student/TestAttempt";
+import TestResult from "./pages/student/TestResult";
 import CourseDetail from "./pages/student/CourseDetail";
 import CourseProgress from "./pages/student/CourseProgress";
 import VerifyCertificate from "./pages/student/VerifyCertificate";
@@ -126,6 +131,32 @@ const appRouter = createBrowserRouter([
         ),
       },
       {
+        // Standalone timed tests: list, the attempt screen (consent →
+        // timed attempt), and a finished attempt's result page.
+        path: "tests",
+        element: (
+          <ProtectedRoute>
+            <Tests />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "test/:testId",
+        element: (
+          <ProtectedRoute>
+            <TestAttempt />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "test-attempt/:attemptId",
+        element: (
+          <ProtectedRoute>
+            <TestResult />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "course/search",
         element: (
           <ProtectedRoute>
@@ -188,6 +219,14 @@ const appRouter = createBrowserRouter([
           {
             path: "course/:courseId/lecture/:lectureId",
             element: <EditLecture />,
+          },
+          {
+            path: "course/:courseId/tests",
+            element: <CourseTests />,
+          },
+          {
+            path: "course/:courseId/tests/:testId/attempts",
+            element: <TestAttempts />,
           },
         ],
       },
