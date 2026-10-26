@@ -15,6 +15,7 @@ import {
   useGetLectureByIdQuery,
   useRemoveLectureMutation,
 } from "@/features/api/courseApi";
+import QuizEditor from "./QuizEditor";
 import axios from "axios";
 import { Loader2, PlayCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -216,6 +217,10 @@ const LectureTab = () => {
                 "Update lecture"
               )}
             </Button>
+          </div>
+
+          <div className="border-t pt-5">
+            <QuizEditor courseId={courseId} lectureId={lectureId} />
           </div>
         </div>
       </CardContent>

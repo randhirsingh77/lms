@@ -3,6 +3,7 @@ import isAuthenticated from "../middlewares/isAuthenticated.js";
 import isInstructor from "../middlewares/isInstructor.js";
 import { validateIds } from "../middlewares/validateIds.js";
 import { createCategory, createCourse, createLecture, editCourse, editLecture, getCategories, getCourseById, getCourseLecture, getCreatorCourses, getLectureById, getPublishedCourse, removeLecture, searchCourse, togglePublishCourse } from "../controllers/course.controller.js";
+import { deleteLectureQuiz, getLectureQuizForAuthoring, upsertLectureQuiz } from "../controllers/quiz.controller.js";
 import upload from "../utils/multer.js";
 const router = express.Router();
 
@@ -22,6 +23,12 @@ router.route("/:courseId").get(isAuthenticated, validateIds("courseId"), getCour
 router.route("/:courseId/lecture").post(isAuthenticated, validateIds("courseId"), createLecture);
 router.route("/:courseId/lecture").get(isAuthenticated, validateIds("courseId"), getCourseLecture);
 router.route("/:courseId/lecture/:lectureId").post(isAuthenticated, validateIds("courseId", "lectureId"), editLecture);
+// Per-lecture quiz authoring — instructor + course ownership are both
+// enforced (middleware for the role, controller for ownership).
+router.route("/:courseId/lecture/:lectureId/quiz")
+    .get(isAuthenticated, isInstructor, validateIds("courseId", "lectureId"), getLectureQuizForAuthoring)
+    .put(isAuthenticated, isInstructor, validateIds("courseId", "lectureId"), upsertLectureQuiz)
+    .delete(isAuthenticated, isInstructor, validateIds("courseId", "lectureId"), deleteLectureQuiz);
 router.route("/lecture/:lectureId").delete(isAuthenticated, validateIds("lectureId"), removeLecture);
 router.route("/lecture/:lectureId").get(isAuthenticated, validateIds("lectureId"), getLectureById);
 router.route("/:courseId").patch(isAuthenticated, validateIds("courseId"), togglePublishCourse);

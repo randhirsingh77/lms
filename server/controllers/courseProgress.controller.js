@@ -104,13 +104,18 @@ export const updateLectureProgress = async (req, res) => {
     );
 
     if (lectureIndex !== -1) {
-      // if lecture already exist, update its status
-      courseProgress.lectureProgress[lectureIndex].viewed = true;
+      // if lecture already exist, update its status — and stamp the
+      // FIRST view time (later replays must not move the streak day).
+      if (!courseProgress.lectureProgress[lectureIndex].viewed) {
+        courseProgress.lectureProgress[lectureIndex].viewed = true;
+        courseProgress.lectureProgress[lectureIndex].viewedAt = new Date();
+      }
     } else {
       // Add new lecture progress
       courseProgress.lectureProgress.push({
         lectureId,
         viewed: true,
+        viewedAt: new Date(),
       });
     }
 

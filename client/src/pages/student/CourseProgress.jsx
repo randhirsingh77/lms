@@ -14,6 +14,7 @@ import {
   useIssueCertificateMutation,
 } from "@/features/api/certificateApi";
 import DoubtsPanel from "@/components/DoubtsPanel";
+import QuizPanel from "@/components/QuizPanel";
 import { cn } from "@/lib/utils";
 import { Award, CheckCircle, CheckCircle2, CirclePlay, VideoOff } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -208,6 +209,7 @@ const CourseProgress = () => {
             lectureId={activeLecture?._id}
             videoRef={videoRef}
           />
+          <QuizPanel lectureId={activeLecture?._id} />
         </div>
 
         {/* Lecture list */}
