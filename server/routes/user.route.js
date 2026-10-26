@@ -1,5 +1,5 @@
 import express from "express";
-import { changePassword, forgotPassword, getPublicInstructor, getUserProfile, login, logout, register, resetPassword, updateProfile } from "../controllers/user.controller.js";
+import { changePassword, forgotPassword, getPublicInstructor, getPublicStudentProfile, getUserProfile, login, logout, register, resetPassword, updateProfile, updatePublicProfileSettings } from "../controllers/user.controller.js";
 import isAuthenticated from "../middlewares/isAuthenticated.js";
 import { validateIds } from "../middlewares/validateIds.js";
 import upload from "../utils/multer.js";
@@ -18,6 +18,10 @@ router.route("/change-password").post(isAuthenticated, changePassword);
 // the payload field-by-field from the instructor's privacy choices, so
 // private data is never in the response to begin with.
 router.route("/instructor/:id").get(validateIds("id"), getPublicInstructor);
+// Public, opt-in student skill page. NO auth: 404 unless the student
+// enabled it, and the payload never contains contact details.
+router.route("/u/:slug").get(getPublicStudentProfile);
+router.route("/public-profile").put(isAuthenticated, updatePublicProfileSettings);
 router.route("/profile").get(isAuthenticated, getUserProfile);
 router.route("/profile/update").put(isAuthenticated, upload.single("profilePhoto"), updateProfile);
 

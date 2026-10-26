@@ -142,6 +142,21 @@ export const authApi = createApi({
                 url:`instructor/${instructorId}`,
                 method:"GET"
             })
+        }),
+        // Public student skill page (opt-in). Also no login; payload is
+        // assembled field-by-field on the server.
+        getPublicStudentProfile: builder.query({
+            query: (slug) => ({
+                url:`u/${slug}`,
+                method:"GET"
+            })
+        }),
+        updatePublicProfileSettings: builder.mutation({
+            query: (inputData) => ({
+                url:"public-profile",
+                method:"PUT",
+                body:inputData
+            })
         })
     })
 });
@@ -154,5 +169,7 @@ export const {
     useForgotPasswordMutation,
     useResetPasswordMutation,
     useChangePasswordMutation,
-    useGetInstructorProfileQuery
+    useGetInstructorProfileQuery,
+    useGetPublicStudentProfileQuery,
+    useUpdatePublicProfileSettingsMutation
 } = authApi;

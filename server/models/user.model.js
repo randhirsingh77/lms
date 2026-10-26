@@ -77,6 +77,19 @@ const userSchema = new mongoose.Schema({
         github:{ type:String, enum:["public","private"], default:"public" },
         website:{ type:String, enum:["public","private"], default:"public" }
     },
+    // Public SKILL profile (shareable student page at /u/:slug).
+    // Strictly OPT-IN: enabled defaults to false and the page 404s
+    // while disabled. The slug is a random token generated when the
+    // student first enables the page — never the name or email, so
+    // profiles can't be enumerated. showScores lets the student hide
+    // quiz scores while still showing completed courses. The public
+    // payload is assembled field-by-field in getPublicStudentProfile;
+    // email and phone are never part of it.
+    publicProfile:{
+        enabled:{ type:Boolean, default:false },
+        slug:{ type:String, default:undefined },
+        showScores:{ type:Boolean, default:true }
+    },
     // Password reset: only the SHA-256 HASH of the emailed token is
     // stored (never the token itself), with a hard expiry. Cleared on
     // use, on password change, and on a fresh forgot-password request,
@@ -91,5 +104,9 @@ const userSchema = new mongoose.Schema({
         default:undefined
     }
 },{timestamps:true});
+
+// Sparse: accounts that never enabled a public profile have no slug
+// at all, so they stay out of the index (and out of reach) entirely.
+userSchema.index({ "publicProfile.slug": 1 }, { unique: true, sparse: true });
 
 export const User = mongoose.model("User", userSchema);

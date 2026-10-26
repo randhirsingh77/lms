@@ -23,6 +23,7 @@ import CourseDetail from "./pages/student/CourseDetail";
 import CourseProgress from "./pages/student/CourseProgress";
 import VerifyCertificate from "./pages/student/VerifyCertificate";
 import CertificatePage from "./pages/student/CertificatePage";
+import PublicProfile from "./pages/student/PublicProfile";
 import SearchPage from "./pages/student/SearchPage";
 import {
   AdminRoute,
@@ -107,6 +108,12 @@ const appRouter = createBrowserRouter([
         // payload contains only what is printed on the certificate.
         path: "verify/:certId",
         element: <VerifyCertificate />,
+      },
+      {
+        // Public student skill profile — opt-in on the server; a
+        // disabled profile answers 404 like a bad link.
+        path: "u/:slug",
+        element: <PublicProfile />,
       },
       {
         // The student's own printable certificate (looked up in their

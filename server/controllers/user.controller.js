@@ -1,5 +1,8 @@
 import {User} from "../models/user.model.js";
 import { Course } from "../models/course.model.js";
+import { CourseProgress } from "../models/courseProgress.js";
+import { QuizAttempt } from "../models/quizAttempt.model.js";
+import { Certificate } from "../models/certificate.model.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -367,6 +370,228 @@ export const getPublicInstructor = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to load instructor profile",
+        });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Public skill profile (opt-in shareable student page, /u/:slug).
+//
+// Privacy rules (enforced HERE, field-by-field, like the instructor
+// page): the profile is OFF by default; while off the endpoint answers
+// 404 exactly like a slug that never existed. The payload contains the
+// student's name/photo, completed courses, certificates (linked to
+// their public verify pages), quiz performance (only if the student
+// left scores visible) and learning streaks. NEVER email, phone, or
+// any account field.
+// ---------------------------------------------------------------------------
+
+const istDayKey = (date) =>
+    new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(date);
+
+const dayKeyToUtcMs = (key) => {
+    const [y, m, d] = key.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+};
+
+// Streaks from REAL activity days (a lecture first viewed, or a quiz
+// passed) in Asia/Kolkata. Activity tracking began with the viewedAt /
+// attempt timestamps — days before that simply don't exist in the
+// data, and the page copy says streaks count from when tracking began.
+const computeStreaks = (dayKeys) => {
+    const days = [...new Set(dayKeys)].sort();
+    if (days.length === 0) return { currentStreak: 0, longestStreak: 0, totalActiveDays: 0 };
+    let longest = 1;
+    let run = 1;
+    for (let i = 1; i < days.length; i++) {
+        const diffDays = Math.round((dayKeyToUtcMs(days[i]) - dayKeyToUtcMs(days[i - 1])) / 86400000);
+        run = diffDays === 1 ? run + 1 : 1;
+        if (run > longest) longest = run;
+    }
+    // Current streak: the run of consecutive calendar days ending
+    // today (or yesterday — today may simply not have happened yet).
+    // Day keys are plain calendar dates, so stepping back one day is
+    // exact UTC date arithmetic on the key itself.
+    const daySet = new Set(days);
+    const prevKeyOf = (key) =>
+        new Date(dayKeyToUtcMs(key) - 86400000).toISOString().slice(0, 10);
+    const todayKey = istDayKey(new Date());
+    const yesterdayKey = prevKeyOf(todayKey);
+    let current = 0;
+    if (daySet.has(todayKey) || daySet.has(yesterdayKey)) {
+        let cursor = daySet.has(todayKey) ? todayKey : yesterdayKey;
+        current = 1;
+        while (daySet.has(prevKeyOf(cursor))) {
+            current += 1;
+            cursor = prevKeyOf(cursor);
+        }
+    }
+    return { currentStreak: current, longestStreak: longest, totalActiveDays: days.length };
+};
+
+export const getPublicStudentProfile = async (req, res) => {
+    try {
+        const { slug } = req.params;
+        if (typeof slug !== "string" || slug.length < 8 || slug.length > 64) {
+            return res.status(404).json({ success: false, message: "Profile not found" });
+        }
+        const user = await User.findOne({
+            "publicProfile.slug": slug,
+            "publicProfile.enabled": true,
+        }).select("name photoUrl bio fieldPrivacy createdAt publicProfile");
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Profile not found" });
+        }
+
+        const userIdStr = String(user._id);
+        const progresses = await CourseProgress.find({ userId: userIdStr }).lean();
+        const courseIds = [...new Set(progresses.map((p) => p.courseId))];
+        const courses = await Course.find({ _id: { $in: courseIds } })
+            .select("courseTitle lectures creator")
+            .populate({ path: "creator", select: "name" })
+            .lean();
+        const courseById = new Map(courses.map((c) => [String(c._id), c]));
+
+        const certificates = await Certificate.find({ userId: user._id, revoked: false })
+            .select("certId courseId createdAt")
+            .lean();
+        const certByCourse = new Map(certificates.map((c) => [String(c.courseId), c]));
+
+        const showScores = user.publicProfile?.showScores !== false;
+        const attempts = showScores
+            ? await QuizAttempt.find({ userId: user._id }).select("courseId quizId score passed attemptedAt").lean()
+            : [];
+
+        // Activity days for streaks (independent of score visibility).
+        const allAttemptsForActivity = showScores
+            ? attempts
+            : await QuizAttempt.find({ userId: user._id, passed: true }).select("attemptedAt").lean();
+        const activityDays = [];
+        for (const progress of progresses) {
+            for (const entry of progress.lectureProgress || []) {
+                if (entry.viewed && entry.viewedAt) activityDays.push(istDayKey(new Date(entry.viewedAt)));
+            }
+        }
+        for (const attempt of allAttemptsForActivity) {
+            if (attempt.passed && attempt.attemptedAt) activityDays.push(istDayKey(new Date(attempt.attemptedAt)));
+        }
+
+        const completedCourses = [];
+        for (const progress of progresses) {
+            const course = courseById.get(String(progress.courseId));
+            if (!course) continue;
+            const lectureIds = (course.lectures || []).map((id) => String(id));
+            if (lectureIds.length === 0) continue;
+            const viewedEntries = (progress.lectureProgress || []).filter(
+                (e) => e.viewed && lectureIds.includes(String(e.lectureId))
+            );
+            if (viewedEntries.length < lectureIds.length) continue;
+            const viewedDates = viewedEntries.map((e) => e.viewedAt).filter(Boolean).map((d) => new Date(d));
+            const entry = {
+                _id: course._id,
+                courseTitle: course.courseTitle,
+                instructorName: course.creator?.name || "",
+                completedAt: viewedDates.length
+                    ? new Date(Math.max(...viewedDates)).toISOString()
+                    : null,
+            };
+            const cert = certByCourse.get(String(course._id));
+            if (cert) entry.certificateId = cert.certId;
+            if (showScores) {
+                const courseAttempts = attempts.filter((a) => String(a.courseId) === String(course._id));
+                if (courseAttempts.length > 0) {
+                    const bestByQuiz = new Map();
+                    for (const a of courseAttempts) {
+                        const key = String(a.quizId);
+                        if (!bestByQuiz.has(key) || a.score > bestByQuiz.get(key)) {
+                            bestByQuiz.set(key, a.score);
+                        }
+                    }
+                    const bestScores = [...bestByQuiz.values()];
+                    entry.quiz = {
+                        averageBestScore: Math.round(
+                            bestScores.reduce((sum, s) => sum + s, 0) / bestScores.length
+                        ),
+                        quizzesPassed: new Set(
+                            courseAttempts.filter((a) => a.passed).map((a) => String(a.quizId))
+                        ).size,
+                        quizzesAttempted: bestByQuiz.size,
+                    };
+                }
+            }
+            completedCourses.push(entry);
+        }
+        completedCourses.sort((a, b) =>
+            String(b.completedAt || "").localeCompare(String(a.completedAt || ""))
+        );
+
+        const profile = {
+            name: user.name,
+            photoUrl: user.photoUrl || "",
+            memberSince: user.createdAt,
+            completedCourses,
+            certificatesIssued: certificates.length,
+            streaks: computeStreaks(activityDays),
+            showScores,
+        };
+        const bioIsPublic =
+            (user.fieldPrivacy?.bio === "public" || user.fieldPrivacy?.bio === "private"
+                ? user.fieldPrivacy.bio
+                : "public") === "public";
+        if (bioIsPublic && user.bio) profile.bio = user.bio;
+
+        return res.status(200).json({ success: true, profile });
+    } catch (error) {
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load profile",
+        });
+    }
+};
+
+// PUT /api/v1/user/public-profile — the owner toggles their public
+// skill profile. The slug is minted once, on first enable, and kept
+// across disable/re-enable so shared links don't rot.
+export const updatePublicProfileSettings = async (req, res) => {
+    try {
+        const { enabled, showScores } = req.body || {};
+        if (enabled !== undefined && typeof enabled !== "boolean") {
+            return res.status(400).json({ success: false, message: "enabled must be true or false." });
+        }
+        if (showScores !== undefined && typeof showScores !== "boolean") {
+            return res.status(400).json({ success: false, message: "showScores must be true or false." });
+        }
+        const user = await User.findById(req.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        if (!user.publicProfile) user.publicProfile = {};
+        if (enabled !== undefined) user.publicProfile.enabled = enabled;
+        if (showScores !== undefined) user.publicProfile.showScores = showScores;
+        if (user.publicProfile.enabled && !user.publicProfile.slug) {
+            user.publicProfile.slug = crypto.randomBytes(12).toString("base64url");
+        }
+        await user.save();
+        return res.status(200).json({
+            success: true,
+            publicProfile: {
+                enabled: !!user.publicProfile.enabled,
+                slug: user.publicProfile.slug || null,
+                showScores: user.publicProfile.showScores !== false,
+            },
+            message: "Public profile settings updated.",
+        });
+    } catch (error) {
+        console.error(error?.name || "Error", "-", String(error?.message || "").slice(0, 200));
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update public profile settings",
         });
     }
 };

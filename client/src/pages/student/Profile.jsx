@@ -23,16 +23,23 @@ import {
   PageShell,
   SectionHeader,
 } from "@/components/SiteUI";
-import { useLoadUserQuery, useUpdateUserMutation } from "@/features/api/authApi";
+import {
+  useLoadUserQuery,
+  useUpdatePublicProfileSettingsMutation,
+  useUpdateUserMutation,
+} from "@/features/api/authApi";
 import {
   BookOpen,
+  Check,
   ChevronRight,
+  Copy,
   Eye,
   KeyRound,
   LayoutDashboard,
   Loader2,
   Mail,
   Phone,
+  Share2,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -88,6 +95,9 @@ const PrivacySwitch = ({ id, label, value, onChange, hint }) => (
 const Profile = () => {
   const { data, isLoading, refetch } = useLoadUserQuery();
   const [updateUser, { isLoading: isSaving }] = useUpdateUserMutation();
+  const [updatePublicProfileSettings, { isLoading: isSavingPublicProfile }] =
+    useUpdatePublicProfileSettingsMutation();
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState("");
@@ -176,6 +186,37 @@ const Profile = () => {
       </PageShell>
     );
   }
+
+  const publicProfile = {
+    enabled: false,
+    slug: null,
+    showScores: true,
+    ...(user.publicProfile || {}),
+  };
+  const publicProfileUrl = publicProfile.slug
+    ? `${window.location.origin}/u/${publicProfile.slug}`
+    : null;
+
+  const handlePublicProfileChange = async (patch) => {
+    try {
+      await updatePublicProfileSettings(patch).unwrap();
+      toast.success("Public profile settings updated.");
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update public profile");
+    }
+  };
+
+  const handleCopyPublicLink = async () => {
+    if (!publicProfileUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicProfileUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      toast.error("Couldn't copy — copy the link manually.");
+    }
+  };
 
   const isInstructor = user.role === "instructor";
   const memberSince = user.createdAt
@@ -270,6 +311,78 @@ const Profile = () => {
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Share2 className="h-4 w-4" /> Public skill profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pb-5">
+              <p className="text-sm text-muted-foreground">
+                A shareable page with your completed courses, verified
+                certificates and learning streak. It is off by default and
+                never shows your email or phone number.
+              </p>
+              <div className="flex items-center justify-between gap-4 py-1">
+                <Label htmlFor="public-profile-enabled" className="cursor-pointer">
+                  Share my skill profile
+                </Label>
+                <Switch
+                  id="public-profile-enabled"
+                  checked={publicProfile.enabled}
+                  disabled={isSavingPublicProfile}
+                  onCheckedChange={(checked) =>
+                    handlePublicProfileChange({ enabled: checked })
+                  }
+                />
+              </div>
+              {publicProfile.enabled ? (
+                <>
+                  <div className="flex items-center justify-between gap-4 py-1">
+                    <Label htmlFor="public-profile-scores" className="cursor-pointer">
+                      Show quiz scores
+                    </Label>
+                    <Switch
+                      id="public-profile-scores"
+                      checked={publicProfile.showScores}
+                      disabled={isSavingPublicProfile}
+                      onCheckedChange={(checked) =>
+                        handlePublicProfileChange({ showScores: checked })
+                      }
+                    />
+                  </div>
+                  {publicProfileUrl ? (
+                    <div className="space-y-2 pt-1">
+                      <p className="break-all rounded-md bg-accent/60 px-3 py-2 text-xs">
+                        {publicProfileUrl}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-9 flex-1"
+                          onClick={handleCopyPublicLink}
+                        >
+                          {copiedLink ? (
+                            <>
+                              <Check className="mr-1.5 h-4 w-4" /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="mr-1.5 h-4 w-4" /> Copy link
+                            </>
+                          )}
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="h-9 flex-1">
+                          <Link to={`/u/${publicProfile.slug}`}>View page</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
             </CardContent>
           </Card>
         </div>
