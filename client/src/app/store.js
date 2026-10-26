@@ -8,10 +8,11 @@ import { certificateApi } from "@/features/api/certificateApi";
 import { doubtsApi } from "@/features/api/doubtsApi";
 import { quizApi } from "@/features/api/quizApi";
 import { testApi } from "@/features/api/testApi";
+import { liveSessionApi } from "@/features/api/liveSessionApi";
 
 export const appStore = configureStore({
     reducer: rootReducer,
-    middleware:(defaultMiddleware) => defaultMiddleware().concat(authApi.middleware, courseApi.middleware, purchaseApi.middleware, courseProgressApi.middleware, certificateApi.middleware, doubtsApi.middleware, quizApi.middleware, testApi.middleware)
+    middleware:(defaultMiddleware) => defaultMiddleware().concat(authApi.middleware, courseApi.middleware, purchaseApi.middleware, courseProgressApi.middleware, certificateApi.middleware, doubtsApi.middleware, quizApi.middleware, testApi.middleware, liveSessionApi.middleware)
 });
 
 const initializeApp = async () => {

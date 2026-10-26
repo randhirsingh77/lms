@@ -17,6 +17,7 @@ import certificateRoute from "./routes/certificate.route.js";
 import doubtRoute from "./routes/doubt.route.js";
 import quizRoute from "./routes/quiz.route.js";
 import testRoute from "./routes/test.route.js";
+import liveSessionRoute from "./routes/liveSession.route.js";
 
 dotenv.config({});
 validateEnv();
@@ -167,6 +168,7 @@ app.use("/api/v1/certificate", certificateRoute);
 app.use("/api/v1/doubt", doubtRoute);
 app.use("/api/v1/quiz", quizRoute);
 app.use("/api/v1/test", testRoute);
+app.use("/api/v1/live-session", liveSessionRoute);
 
 // Any other route: JSON 404 (used to be Express's HTML error page).
 app.use((req, res) => {

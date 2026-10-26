@@ -21,6 +21,9 @@ import EditLecture from "./pages/admin/lecture/EditLecture";
 import DoubtsInbox from "./pages/admin/DoubtsInbox";
 import CourseTests from "./pages/admin/course/CourseTests";
 import TestAttempts from "./pages/admin/course/TestAttempts";
+import CourseLiveSessions from "./pages/admin/course/CourseLiveSessions";
+import LiveSessions from "./pages/student/LiveSessions";
+import LiveJoin from "./pages/student/LiveJoin";
 import Tests from "./pages/student/Tests";
 import TestAttempt from "./pages/student/TestAttempt";
 import TestResult from "./pages/student/TestResult";
@@ -157,6 +160,24 @@ const appRouter = createBrowserRouter([
         ),
       },
       {
+        // Live classes: the student's schedule list and the embedded
+        // Jitsi join page (the server gates the room name at join time).
+        path: "live-sessions",
+        element: (
+          <ProtectedRoute>
+            <LiveSessions />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "live/:sessionId",
+        element: (
+          <ProtectedRoute>
+            <LiveJoin />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "course/search",
         element: (
           <ProtectedRoute>
@@ -227,6 +248,10 @@ const appRouter = createBrowserRouter([
           {
             path: "course/:courseId/tests/:testId/attempts",
             element: <TestAttempts />,
+          },
+          {
+            path: "course/:courseId/live-sessions",
+            element: <CourseLiveSessions />,
           },
         ],
       },

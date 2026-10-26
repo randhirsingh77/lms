@@ -7,6 +7,7 @@ import { certificateApi } from "./certificateApi";
 import { doubtsApi } from "./doubtsApi";
 import { quizApi } from "./quizApi";
 import { testApi } from "./testApi";
+import { liveSessionApi } from "./liveSessionApi";
 
 const USER_API = import.meta.env.VITE_API_URL + "/api/v1/user/"
 
@@ -24,6 +25,7 @@ const resetUserScopedCaches = (dispatch) => {
     dispatch(doubtsApi.util.resetApiState());
     dispatch(quizApi.util.resetApiState());
     dispatch(testApi.util.resetApiState());
+    dispatch(liveSessionApi.util.resetApiState());
 };
 
 export const authApi = createApi({

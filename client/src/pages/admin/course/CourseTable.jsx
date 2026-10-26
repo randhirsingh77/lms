@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useGetCreatorCourseQuery } from "@/features/api/courseApi";
-import { AlertCircle, BookOpen, ClipboardList, Pencil, Plus } from "lucide-react";
+import { AlertCircle, BookOpen, ClipboardList, Pencil, Plus, Video } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState, PageHeader } from "@/components/SiteUI";
@@ -126,6 +126,14 @@ const CourseTable = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-10"
+                          onClick={() => navigate(`${course._id}/live-sessions`)}
+                        >
+                          <Video className="h-4 w-4" />
+                          Live
+                        </Button>
                         <Button
                           variant="outline"
                           className="h-10"

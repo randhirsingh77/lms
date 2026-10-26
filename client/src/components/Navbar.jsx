@@ -85,6 +85,9 @@ const Navbar = () => {
                 <NavLink to="/tests" className={navLinkClass}>
                   Tests
                 </NavLink>
+                <NavLink to="/live-sessions" className={navLinkClass}>
+                  Live
+                </NavLink>
               </>
             ) : null}
           </nav>
@@ -217,6 +220,11 @@ const MobileNavbar = ({ user, onLogout }) => {
               <SheetClose asChild>
                 <Link to="/tests" className="rounded-lg px-3 py-2.5 hover:bg-accent">
                   Tests
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link to="/live-sessions" className="rounded-lg px-3 py-2.5 hover:bg-accent">
+                  Live Classes
                 </Link>
               </SheetClose>
               <SheetClose asChild>
