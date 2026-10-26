@@ -7,7 +7,10 @@ import { Course } from "../models/course.model.js";
 // lecture list through this endpoint and even mark a course they never
 // bought as completed. Access now requires enrolment or ownership —
 // the same rule the client-side route guard pretends to enforce.
-const loadCourseForProgress = async (req, res) => {
+// Exported: the certificate, doubt and quiz controllers reuse this
+// exact enrolment/ownership guard so access rules can never drift
+// between "watch the course" and the features built on top of it.
+export const loadCourseForProgress = async (req, res) => {
   const { courseId } = req.params;
   const course = await Course.findById(courseId);
   if (!course) {
@@ -143,9 +146,13 @@ export const markAsCompleted = async (req, res) => {
     if (!courseProgress)
       return res.status(404).json({ message: "Course progress not found" });
 
-    courseProgress.lectureProgress.map(
-      (lectureProgress) => (lectureProgress.viewed = true)
-    );
+    // "Mark as completed" is a PERSONAL MARKER only. It used to also
+    // flip every lecture's `viewed` flag, which made the marker
+    // indistinguishable from actually watching the course — and
+    // certificates are issued from those viewed records (see
+    // utils/certificateEligibility). The marker now touches ONLY the
+    // completed flag; viewed records are written solely by
+    // updateLectureProgress when a lecture is really opened/played.
     courseProgress.completed = true;
     await courseProgress.save();
     return res.status(200).json({ message: "Course marked as completed." });
@@ -166,9 +173,9 @@ export const markAsInCompleted = async (req, res) => {
       if (!courseProgress)
         return res.status(404).json({ message: "Course progress not found" });
 
-      courseProgress.lectureProgress.map(
-        (lectureProgress) => (lectureProgress.viewed = false)
-      );
+      // Mirror of markAsCompleted: only the marker flag changes. Real
+      // viewed records (and any certificate earned from them) are
+      // history and are never rewritten by the marker buttons.
       courseProgress.completed = false;
       await courseProgress.save();
       return res.status(200).json({ message: "Course marked as incompleted." });

@@ -4,16 +4,21 @@ import {
   EmptyState,
   PageHeader,
   PageShell,
+  SectionHeader,
 } from "@/components/SiteUI";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useLoadUserQuery } from "@/features/api/authApi";
-import { BookOpen } from "lucide-react";
+import { useGetMyCertificatesQuery } from "@/features/api/certificateApi";
+import { Award, BookOpen } from "lucide-react";
 import React from "react";
 import { Link } from "react-router-dom";
 
 const MyLearning = () => {
   const { data, isLoading } = useLoadUserQuery();
   const myLearning = data?.user?.enrolledCourses || [];
+  const { data: certData } = useGetMyCertificatesQuery();
+  const certificates = (certData?.certificates || []).filter((c) => !c.revoked);
 
   return (
     <PageShell className="py-10">
@@ -44,6 +49,50 @@ const MyLearning = () => {
           ))}
         </div>
       )}
+
+      {certificates.length > 0 ? (
+        <section className="mt-12">
+          <SectionHeader
+            title="My certificates"
+            description="Certificates you've earned — each one is publicly verifiable."
+            className="mb-6"
+          />
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {certificates.map((cert) => (
+              <Card key={cert.certId}>
+                <CardContent className="space-y-3 p-5">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Award className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="font-medium leading-snug">{cert.courseTitle}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Issued{" "}
+                      {cert.issuedAt
+                        ? new Date(cert.issuedAt).toLocaleDateString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : ""}
+                      {" · "}
+                      {cert.issuer}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button asChild size="sm" className="h-9">
+                      <Link to={`/certificate/${cert.certId}`}>View / Print</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline" className="h-9">
+                      <Link to={`/verify/${cert.certId}`}>Verify</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </PageShell>
   );
 };

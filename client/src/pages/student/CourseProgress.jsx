@@ -9,10 +9,14 @@ import {
   useInCompleteCourseMutation,
   useUpdateLectureProgressMutation,
 } from "@/features/api/courseProgressApi";
+import {
+  useGetMyCertificatesQuery,
+  useIssueCertificateMutation,
+} from "@/features/api/certificateApi";
 import { cn } from "@/lib/utils";
-import { CheckCircle, CheckCircle2, CirclePlay, VideoOff } from "lucide-react";
+import { Award, CheckCircle, CheckCircle2, CirclePlay, VideoOff } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const CourseProgress = () => {
@@ -20,6 +24,12 @@ const CourseProgress = () => {
   const courseId = params.courseId;
   const { data, isLoading, isError, refetch } =
     useGetCourseProgressQuery(courseId);
+
+  const navigate = useNavigate();
+  const { data: certData, refetch: refetchCertificates } =
+    useGetMyCertificatesQuery();
+  const [issueCertificate, { isLoading: isIssuingCertificate }] =
+    useIssueCertificateMutation();
 
   const [updateLectureProgress] = useUpdateLectureProgressMutation();
   const [
@@ -124,6 +134,29 @@ const CourseProgress = () => {
     (lec) => lec._id === activeLecture._id
   );
 
+  // Certificate state: issued from real viewed records (the server
+  // re-checks eligibility, including lecture quizzes, on issue) — the
+  // "Mark as completed" marker above plays no part in it.
+  const myCertificate = (certData?.certificates || []).find(
+    (c) => String(c.courseId) === String(courseId) && !c.revoked
+  );
+  const allLecturesViewed =
+    courseDetails.lectures.length > 0 &&
+    courseDetails.lectures.every((lec) => isLectureCompleted(lec._id));
+
+  const handleClaimCertificate = async () => {
+    try {
+      const res = await issueCertificate(courseId).unwrap();
+      await refetchCertificates();
+      toast.success(res?.message || "Certificate issued.");
+      if (res?.certificate?.certId) {
+        navigate(`/certificate/${res.certificate.certId}`);
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || "Certificate could not be issued yet.");
+    }
+  };
+
   return (
     <PageShell className="py-8">
       <PageHeader
@@ -174,6 +207,30 @@ const CourseProgress = () => {
               {courseDetails.lectures.length} watched
             </p>
           </div>
+          {myCertificate || allLecturesViewed ? (
+            <div className="border-t px-5 py-4">
+              {myCertificate ? (
+                <Button asChild className="h-10 w-full">
+                  <Link to={`/certificate/${myCertificate.certId}`}>
+                    <Award className="mr-2 h-4 w-4" /> View your certificate
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleClaimCertificate}
+                  disabled={isIssuingCertificate}
+                  className="h-10 w-full"
+                >
+                  <Award className="mr-2 h-4 w-4" />
+                  {isIssuingCertificate ? "Issuing…" : "Claim your certificate"}
+                </Button>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Certificates are earned by watching every lecture and
+                passing any lecture quizzes — and are publicly verifiable.
+              </p>
+            </div>
+          ) : null}
           <div className="max-h-[560px] divide-y overflow-y-auto">
             {courseDetails.lectures.map((lecture, idx) => {
               const watched = isLectureCompleted(lecture._id);

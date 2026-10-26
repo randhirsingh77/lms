@@ -20,6 +20,8 @@ import CreateLecture from "./pages/admin/lecture/CreateLecture";
 import EditLecture from "./pages/admin/lecture/EditLecture";
 import CourseDetail from "./pages/student/CourseDetail";
 import CourseProgress from "./pages/student/CourseProgress";
+import VerifyCertificate from "./pages/student/VerifyCertificate";
+import CertificatePage from "./pages/student/CertificatePage";
 import SearchPage from "./pages/student/SearchPage";
 import {
   AdminRoute,
@@ -98,6 +100,22 @@ const appRouter = createBrowserRouter([
         // privacy-filtered on the server.
         path: "instructor/:instructorId",
         element: <InstructorProfile />,
+      },
+      {
+        // Public certificate verification — no login required; the API
+        // payload contains only what is printed on the certificate.
+        path: "verify/:certId",
+        element: <VerifyCertificate />,
+      },
+      {
+        // The student's own printable certificate (looked up in their
+        // certificate list, so another account's id shows "not found").
+        path: "certificate/:certId",
+        element: (
+          <ProtectedRoute>
+            <CertificatePage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "course/search",

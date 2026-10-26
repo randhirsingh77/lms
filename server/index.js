@@ -13,6 +13,7 @@ import courseRoute from "./routes/course.route.js";
 import mediaRoute from "./routes/media.route.js";
 import purchaseRoute from "./routes/purchaseCourse.route.js";
 import courseProgressRoute from "./routes/courseProgress.route.js";
+import certificateRoute from "./routes/certificate.route.js";
 
 dotenv.config({});
 validateEnv();
@@ -137,6 +138,17 @@ app.use("/api/v1/user/forgot-password", forgotPasswordLimiter, forgotPerEmailLim
 app.use("/api/v1/user/reset-password", resetPasswordLimiter);
 app.use("/api/v1/user/change-password", changePasswordLimiter);
 
+// Certificate verification is public and keyed by an unguessable UUID;
+// a tight per-IP budget keeps id-guessing pointless on top of that.
+const certificateVerifyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many verification requests. Please try again later." },
+});
+app.use("/api/v1/certificate/verify", certificateVerifyLimiter);
+
 // Cheap liveness probe for the host — no DB access, no internals leaked.
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -148,6 +160,7 @@ app.use("/api/v1/user", userRoute);
 app.use("/api/v1/course", courseRoute);
 app.use("/api/v1/purchase", purchaseRoute);
 app.use("/api/v1/progress", courseProgressRoute);
+app.use("/api/v1/certificate", certificateRoute);
 
 // Any other route: JSON 404 (used to be Express's HTML error page).
 app.use((req, res) => {

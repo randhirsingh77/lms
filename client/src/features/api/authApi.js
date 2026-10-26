@@ -3,6 +3,7 @@ import { userLoggedIn, userLoggedOut } from "../authSlice";
 import { courseApi } from "./courseApi";
 import { purchaseApi } from "./purchaseApi";
 import { courseProgressApi } from "./courseProgressApi";
+import { certificateApi } from "./certificateApi";
 
 const USER_API = import.meta.env.VITE_API_URL + "/api/v1/user/"
 
@@ -16,6 +17,7 @@ const resetUserScopedCaches = (dispatch) => {
     dispatch(courseApi.util.resetApiState());
     dispatch(purchaseApi.util.resetApiState());
     dispatch(courseProgressApi.util.resetApiState());
+    dispatch(certificateApi.util.resetApiState());
 };
 
 export const authApi = createApi({
