@@ -1,6 +1,6 @@
 # LMS — Learning Management System
 
-A full-stack learning platform where instructors publish courses with video lectures and students purchase, watch, and track their progress. Built with the MERN stack + Redux Toolkit.
+I built this full-stack learning platform: instructors publish courses with video lectures, and students purchase, watch, and track their progress. Built with the MERN stack + Redux Toolkit.
 
 ## Features
 
